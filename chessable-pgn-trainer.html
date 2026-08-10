@@ -567,17 +567,32 @@
         return copy;
       }
 
-      function scrubPgn(pgn) {
-        return pgn
-          .replace(/\r/g, "\n")
-          .replace(/\[[^\]]*\]/g, " ")
-          .replace(/\{[^}]*\}/g, " ")
-          .replace(/;[^\n]*/g, " ")
-          .replace(/\$\d+/g, " ")
-          .replace(/\d+\.(\.\.)?/g, " ")
-          .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
-      }
+    function scrubPgn(pgn) {
+  return pgn
+    .replace(/\r/g, "\n")
 
+    // Remove PGN headers.
+    .replace(/\[[^\]]*\]/g, " ")
+
+    // Remove Chessable special blocks.
+    .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
+    .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
+
+    // Remove normal PGN comments.
+    .replace(/\{[\s\S]*?\}/g, " ")
+
+    // Remove semicolon comments.
+    .replace(/;[^\n]*/g, " ")
+
+    // Remove NAG annotations such as $1, $2, etc.
+    .replace(/\$\d+/g, " ")
+
+    // Remove move numbers.
+    .replace(/\d+\.(?:\.\.)?/g, " ")
+
+    // Remove game results.
+    .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
+}
       function tokenizePgn(pgn) {
         return scrubPgn(pgn)
           .replace(/\(/g, " ( ")
