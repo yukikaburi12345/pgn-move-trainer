@@ -471,44 +471,44 @@
     (() => {
       const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
-      const pieceTemplates = {
-        p: `
-          <path d="M 35,50 C 35,42 42,36 45,30 C 42,28 40,24 40,20 C 40,14 45,10 50,10 C 55,10 60,14 60,20 C 60,24 58,28 55,30 C 58,36 65,42 65,50 Z" class="glass-body"/>
-          <ellipse cx="50" cy="20" rx="6" ry="6" class="glass-head-gloss"/>
-          <path d="M 28,70 L 72,70 L 68,54 L 32,54 Z" class="glass-base"/>
-          <path d="M 32,58 Q 50,52 68,58" class="glass-highlight"/>
-        `,
-        r: `
-          <path d="M 30,25 L 30,15 L 40,15 L 40,20 L 48,20 L 48,15 L 52,15 L 52,20 L 60,20 L 60,15 L 70,15 L 70,25 L 64,32 L 64,52 L 72,58 L 72,70 L 28,70 L 28,58 L 36,52 L 36,32 Z" class="glass-body"/>
-          <path d="M 34,32 L 66,32" class="glass-highlight"/>
-          <path d="M 32,58 Q 50,52 68,58" class="glass-highlight"/>
-        `,
-        n: `
-          <path d="M 30,70 L 70,70 L 68,56 C 68,50 60,46 64,36 C 66,30 72,26 68,16 C 58,12 46,16 40,24 C 36,20 28,22 24,30 C 22,36 28,40 32,38 C 26,44 26,52 32,56 C 28,60 28,66 30,70 Z" class="glass-body"/>
-          <circle cx="42" cy="25" r="2.5" class="glass-eye"/>
-          <path d="M 35,32 Q 50,22 60,28" class="glass-highlight"/>
-        `,
-        b: `
-          <path d="M 50,10 C 40,18 32,32 36,48 C 38,54 32,58 28,70 L 72,70 C 68,58 62,54 64,48 C 68,32 60,18 50,10 Z" class="glass-body"/>
-          <circle cx="50" cy="10" r="3.5" class="glass-top"/>
-          <path d="M 42,28 L 58,28 M 50,20 L 50,36" class="glass-cross"/>
-          <path d="M 34,56 Q 50,50 66,56" class="glass-highlight"/>
-        `,
-        q: `
-          <path d="M 28,70 L 72,70 L 68,56 L 76,28 L 60,42 L 50,18 L 40,42 L 24,28 L 32,56 Z" class="glass-body"/>
-          <circle cx="24" cy="26" r="3" class="glass-top"/>
-          <circle cx="40" cy="38" r="2.5" class="glass-top"/>
-          <circle cx="50" cy="15" r="3.5" class="glass-top"/>
-          <circle cx="60" cy="38" r="2.5" class="glass-top"/>
-          <circle cx="76" cy="26" r="3" class="glass-top"/>
-          <path d="M 32,58 Q 50,52 68,58" class="glass-highlight"/>
-        `,
-        k: `
-          <path d="M 28,70 L 72,70 L 68,56 C 68,48 64,42 62,32 C 60,26 56,22 50,22 C 44,22 40,26 38,32 C 36,42 32,48 32,56 Z" class="glass-body"/>
-          <path d="M 50,8 L 50,20 M 44,13 L 56,13" class="glass-cross" stroke-width="3.5"/>
-          <path d="M 32,58 Q 50,52 68,58" class="glass-highlight"/>
-        `
-      };
+    const pieceTemplates = {
+  p: `
+    <path d="M50 12c-8 0-14 6-14 14 0 5 2 9 5 12-6 6-10 14-10 22h38c0-8-4-16-10-22 3-3 5-7 5-12 0-8-6-14-14-14z" class="glass-body"/>
+    <circle cx="50" cy="20" r="6" class="glass-top"/>
+    <path d="M34 58q16-6 32 0" class="glass-highlight"/>
+  `,
+  r: `
+    <path d="M32 18h8v6h8v-6h8v6h8v-6h8v12l-6 8v26l6 6v10H32V70l6-6V38l-6-8z" class="glass-body"/>
+    <path d="M36 32h28" class="glass-highlight"/>
+    <path d="M34 58q16-6 32 0" class="glass-highlight"/>
+  `,
+  n: `
+    <path d="M30 70h40l-2-12c0-8-10-12-10-20 0-8 10-10 10-20-10-6-22-2-28 6-4-4-12-2-16 6-2 6 4 10 8 8-6 6-6 14 0 18-4 4-4 10-2 14z" class="glass-body"/>
+    <circle cx="46" cy="26" r="3" class="glass-eye"/>
+    <path d="M36 32q14-10 28-4" class="glass-highlight"/>
+  `,
+  b: `
+    <path d="M50 10c-10 8-18 22-14 38 2 6-4 10-8 22h44c-4-12-10-16-8-22 4-16-4-30-14-38z" class="glass-body"/>
+    <circle cx="50" cy="10" r="4" class="glass-top"/>
+    <path d="M42 28h16M50 20v16" class="glass-cross"/>
+    <path d="M34 56q16-6 32 0" class="glass-highlight"/>
+  `,
+  q: `
+    <path d="M28 70h44l-4-14 8-26-16 12-10-24-10 24-16-12 8 26z" class="glass-body"/>
+    <circle cx="24" cy="26" r="3" class="glass-top"/>
+    <circle cx="40" cy="38" r="3" class="glass-top"/>
+    <circle cx="50" cy="15" r="4" class="glass-top"/>
+    <circle cx="60" cy="38" r="3" class="glass-top"/>
+    <circle cx="76" cy="26" r="3" class="glass-top"/>
+    <path d="M32 58q16-6 32 0" class="glass-highlight"/>
+  `,
+  k: `
+    <path d="M28 70h44l-4-14c0-10-4-16-6-24-2-6-6-10-12-10s-10 4-12 10c-2 8-6 14-6 24z" class="glass-body"/>
+    <path d="M50 8v12M44 14h12" class="glass-cross" stroke-width="3.5"/>
+    <path d="M32 58q16-6 32 0" class="glass-highlight"/>
+  `
+};
+
 
       const state = {
         tree: { children: [], parent: null, move: null },
