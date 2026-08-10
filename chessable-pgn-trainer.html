@@ -234,7 +234,6 @@
         var(--dark-square);
     }
 
-    /* Glass Theme Piece Layout */
     .square .piece {
       position: relative;
       z-index: 1;
@@ -472,7 +471,6 @@
     (() => {
       const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
-      // Chess.com style Glass Theme SVG Piece Definitions
       const pieceTemplates = {
         p: `
           <path d="M 35,50 C 35,42 42,36 45,30 C 42,28 40,24 40,20 C 40,14 45,10 50,10 C 55,10 60,14 60,20 C 60,24 58,28 55,30 C 58,36 65,42 65,50 Z" class="glass-body"/>
@@ -591,7 +589,7 @@
       function scrubPgn(pgn) {
         return (pgn || "")
           .replace(/\r/g, "\n")
-          .replace(/^\s*\[[^\n]*\]\s*$/gm, " ")
+          .replace(/\[[^\]]*\]/g, " ")
           .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
           .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
           .replace(/\{[\s\S]*?\}/g, " ")
@@ -639,39 +637,49 @@
         }
 
         const root = { children: [], parent: null, move: null };
-        const initial = new Chess();
-        let currentNode = root;
-        let chess = initial;
-        let lastBranch = { node: root, fen: initial.fen() };
-        const stack = [];
+        const rawGames = pgn.split(/(?=\[\s*Event\s*")/gi);
 
-        for (const raw of tokenizePgn(pgn)) {
-          if (raw === "(") {
-            stack.push({ node: currentNode, fen: chess.fen(), lastBranch });
-            currentNode = lastBranch.node;
-            chess = new Chess();
-            chess.load(lastBranch.fen);
-            continue;
-          }
-          if (raw === ")") {
-            const context = stack.pop();
-            if (!context) continue;
-            currentNode = context.node;
-            chess = new Chess();
-            chess.load(context.fen);
-            lastBranch = context.lastBranch;
-            continue;
-          }
+        for (const gameStr of rawGames) {
+          const tokens = tokenizePgn(gameStr);
+          if (!tokens.length) continue;
 
-          const san = raw.replace(/^[.]+/, "");
-          const fenBefore = chess.fen();
-          const move = chess.move(san, { sloppy: true });
-          if (!move) {
-            throw new Error(`Could not read move "${raw}".`);
+          let chess = new Chess();
+          let currentNode = root;
+          let lastBranch = { node: root, fen: chess.fen() };
+          const stack = [];
+
+          for (const raw of tokens) {
+            if (raw === "(") {
+              stack.push({ node: currentNode, fen: chess.fen(), lastBranch });
+              currentNode = lastBranch.node;
+              chess = new Chess();
+              chess.load(lastBranch.fen);
+              continue;
+            }
+            if (raw === ")") {
+              const context = stack.pop();
+              if (!context) continue;
+              currentNode = context.node;
+              chess = new Chess();
+              chess.load(context.fen);
+              lastBranch = context.lastBranch;
+              continue;
+            }
+
+            const san = raw.replace(/^[.]+/, "").replace(/[!?+#]+$/g, "");
+            if (!san || san.length > 7) continue;
+
+            const fenBefore = chess.fen();
+            const move = chess.move(san, { sloppy: true });
+            
+            if (!move) {
+              continue;
+            }
+
+            const child = addChild(currentNode, move, fenBefore, chess.fen());
+            lastBranch = { node: currentNode };
+            currentNode = child;
           }
-          const child = addChild(currentNode, move, fenBefore, chess.fen());
-          lastBranch = { node: currentNode };
-          currentNode = child;
         }
 
         return root;
