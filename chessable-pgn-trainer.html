@@ -436,6 +436,10 @@
 
       <label>
         PGN
+       <label class="file-upload">
+    📁 Import PGN file
+    <input type="file" id="pgnFile" accept=".pgn">
+</label>
         <textarea id="pgnInput" spellcheck="false">[Event "Queen's Gambit sample"]
 [Site "?"]
 [Result "*"]
@@ -712,6 +716,46 @@
               btn.appendChild(coord);
             }
             btn.addEventListener("click", () => onSquare(squareName));
+            btn.addEventListener("pointerdown", (e) => {
+  if (!state.chess || !userToMove()) return;
+
+  const piece = state.chess.get(squareName);
+  if (!piece || piece.color !== state.chess.turn()) return;
+
+  state.selected = squareName;
+  state.legalTargets =
+    state.chess.moves({
+      square: squareName,
+      verbose: true
+    }).map(move => move.to);
+
+  draw();
+
+  const boardRect = els.board.getBoundingClientRect();
+
+  function finishDrag(ev) {
+    const x = ev.clientX - boardRect.left;
+    const y = ev.clientY - boardRect.top;
+
+    const col = Math.floor(x / (boardRect.width / 8));
+    const row = Math.floor(y / (boardRect.height / 8));
+
+    if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+      const destination = squareAt(row, col);
+      onSquare(destination);
+    }
+
+    state.selected = null;
+    state.legalTargets = [];
+
+    draw();
+
+    window.removeEventListener("pointerup", finishDrag);
+  }
+
+  window.addEventListener("pointerup", finishDrag);
+  e.preventDefault();
+});
             els.board.appendChild(btn);
           }
         }
@@ -906,6 +950,19 @@
       }
 
       els.load.addEventListener("click", loadPgn);
+      document.getElementById("pgnFile").addEventListener("change", (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = (e) => {
+    els.pgn.value = e.target.result;
+    loadPgn();
+  };
+
+  reader.readAsText(file);
+});
       els.next.addEventListener("click", chooseRandomLine);
       els.flip.addEventListener("click", () => {
         state.orientation = state.orientation === "white" ? "black" : "white";
