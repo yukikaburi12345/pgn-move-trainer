@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PGN Move Trainer</title>
+</head>
+<body>
+<div id="pgn-move-trainer">
+  <style>
+    #pgn-move-trainer {
+      --ink: #e8f3f5;
+      --muted: #91a9b2;
+      --surface: #10191f;
+      --panel: #17252d;
+      --line: #2f4854;
+      --dark-square: #6c98ac;
+      --light-square: #d8e8ee;
+      --accent: #62a9cf;
+      --accent-ink: #ffffff;
+      --warn: #b84d2f;
+      --ok: #2f7b4f;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 15% 10%, rgba(99, 169, 207, 0.22), transparent 28%),
+        radial-gradient(circle at 85% 22%, rgba(159, 212, 226, 0.12), transparent 24%),
+        linear-gradient(135deg, #0b1116 0%, #14232b 48%, #0c151a 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    #pgn-move-trainer * {
+      box-sizing: border-box;
+    }
+
+    .trainer-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(280px, 420px) minmax(320px, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+
+    .trainer-panel,
+    .trainer-board-wrap {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    .trainer-panel {
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .trainer-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: start;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #0f181e;
+      color: var(--ink);
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 260px;
+      padding: 12px;
+      resize: vertical;
+      line-height: 1.45;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+    }
+
+    select {
+      padding: 9px 10px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      border-radius: 6px;
+      min-height: 38px;
+      padding: 8px 12px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .status {
+      min-height: 44px;
+      padding: 11px 12px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 650;
+    }
+
+    .status.good {
+      border-color: color-mix(in srgb, var(--ok), var(--line) 40%);
+      color: var(--ok);
+    }
+
+    .status.bad {
+      border-color: color-mix(in srgb, var(--warn), var(--line) 40%);
+      color: var(--warn);
+    }
+
+    .trainer-board-wrap {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .board-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .board-top strong {
+      font-size: 18px;
+    }
+
+    .board-area {
+      display: grid;
+      grid-template-columns: minmax(280px, 680px) minmax(220px, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .board-frame {
+      width: 100%;
+      max-width: 680px;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      border: 3px solid #304e5d;
+      border-radius: 2px;
+      overflow: hidden;
+      user-select: none;
+      touch-action: manipulation;
+      box-shadow: 0 20px 42px rgba(0, 0, 0, 0.34);
+    }
+
+    .square {
+      position: relative;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      min-height: 0;
+      font-size: clamp(30px, 7.2vw, 76px);
+      line-height: 1;
+      font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", serif;
+      font-weight: 400;
+      color: #10191d;
+      overflow: hidden;
+    }
+
+    .square.light {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.34), rgba(255,255,255,0) 46%),
+        radial-gradient(circle at 28% 18%, rgba(255,255,255,0.45), transparent 28%),
+        radial-gradient(circle at 70% 70%, rgba(78, 123, 143, 0.13), transparent 38%),
+        var(--light-square);
+    }
+
+    .square.dark {
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.15), rgba(17, 76, 102, 0.12) 62%),
+        radial-gradient(circle at 25% 22%, rgba(255,255,255,0.14), transparent 26%),
+        radial-gradient(circle at 72% 76%, rgba(32, 82, 105, 0.17), transparent 40%),
+        var(--dark-square);
+    }
+
+    .piece {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 100%;
+      height: 100%;
+      transform: translateY(-2px);
+      filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.58)) drop-shadow(0 5px 6px rgba(4, 11, 14, 0.34));
+    }
+
+    .piece svg {
+      width: 86%;
+      height: 86%;
+      overflow: visible;
+    }
+
+    .piece .body {
+      stroke: #071015;
+      stroke-width: 2.4;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .piece .line {
+      fill: none;
+      stroke: #071015;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      opacity: 0.9;
+    }
+
+    .piece.white .body {
+      fill: url(#whitePieceGradient);
+    }
+
+    .piece.black .body {
+      fill: url(#blackPieceGradient);
+    }
+
+    .piece.black .shine,
+    .piece.white .shine {
+      fill: rgba(255, 255, 255, 0.22);
+      stroke: none;
+    }
+
+    .square.selected::after,
+    .square.target::after,
+    .square.last::after,
+    .square.hint::after {
+      content: "";
+      position: absolute;
+      inset: 6%;
+      border-radius: 6px;
+      pointer-events: none;
+    }
+
+    .square.selected::after {
+      box-shadow: inset 0 0 0 4px rgba(37, 108, 170, 0.78);
+    }
+
+    .square.target::after {
+      width: 26%;
+      height: 26%;
+      inset: 37%;
+      border-radius: 999px;
+      background: rgba(37, 108, 170, 0.55);
+    }
+
+    .square.last::after {
+      background: rgba(255, 217, 97, 0.38);
+    }
+
+    .square.hint::after {
+      box-shadow: inset 0 0 0 4px rgba(184, 77, 47, 0.75);
+    }
+
+    .square-coord {
+      position: absolute;
+      left: 4px;
+      bottom: 3px;
+      color: #6d99ae;
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      font-size: clamp(12px, 2.1vw, 22px);
+      font-weight: 700;
+      line-height: 1;
+      z-index: 2;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.45);
+    }
+
+    .line-panel {
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 3px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      overflow-wrap: anywhere;
+    }
+
+    .moves {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 12px;
+      min-height: 190px;
+      max-height: 420px;
+      overflow: auto;
+      line-height: 1.7;
+    }
+
+    .move-token {
+      display: inline-block;
+      margin-right: 6px;
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .move-token.done {
+      color: var(--muted);
+    }
+
+    .move-token.current {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+
+    .move-token.hidden-move {
+      background: var(--panel);
+      color: transparent;
+      text-shadow: 0 0 7px rgba(23, 32, 26, 0.65);
+    }
+
+    @media (max-width: 900px) {
+      #pgn-move-trainer {
+        padding: 14px;
+      }
+
+      .trainer-shell,
+      .board-area {
+        grid-template-columns: 1fr;
+      }
+
+      .board-frame {
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .trainer-panel,
+      .trainer-board-wrap {
+        padding: 12px;
+      }
+
+      .trainer-title,
+      .board-top {
+        display: grid;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="trainer-shell">
+    <aside class="trainer-panel">
+      <div class="trainer-title">
+        <div>
+          <h1>PGN Move Trainer</h1>
+          <div class="small">Paste a PGN with branches, pick a side, and drill a random variation.</div>
+        </div>
+      </div>
+
+      <label>
+        PGN
+        <textarea id="pgnInput" spellcheck="false">[Event "Queen's Gambit sample"]
+[Site "?"]
+[Result "*"]
+
+1. d4 d5 2. c4 e6 (2... c6 3. Nf3 Nf6 4. Nc3 dxc4) 3. Nc3 Nf6
+4. Bg5 Be7 (4... Nbd7 5. e3 Be7) 5. e3 O-O 6. Nf3 h6
+7. Bh4 b6 (7... Ne4 8. Bxe7 Qxe7) 8. cxd5 Nxd5 *</textarea>
+      </label>
+
+      <label>
+        Train side
+        <select id="sideSelect">
+          <option value="white">White</option>
+          <option value="black">Black</option>
+          <option value="both">Both sides</option>
+        </select>
+      </label>
+
+      <div class="controls">
+        <button class="primary" id="loadBtn" type="button">Load PGN</button>
+        <button id="newLineBtn" type="button" disabled>Random line</button>
+        <button id="flipBtn" type="button">Flip board</button>
+        <button id="hintBtn" type="button" disabled>Hint</button>
+        <button id="revealBtn" type="button" disabled>Reveal</button>
+      </div>
+
+      <div id="parseNote" class="small">Variations in parentheses become separate drill lines.</div>
+    </aside>
+
+    <main class="trainer-board-wrap">
+      <div class="board-top">
+        <strong id="lineName">No line loaded</strong>
+        <div class="small" id="turnNote">Load a PGN to begin.</div>
+      </div>
+
+      <div class="status" id="statusBox">
+        <span id="statusText">Waiting for PGN</span>
+        <span id="expectedText" class="small"></span>
+      </div>
+
+      <div class="board-area">
+        <div id="board" class="board-frame" aria-label="Chess board"></div>
+        <section class="line-panel">
+          <div class="metric-row">
+            <div class="metric"><span>Lines</span><strong id="lineCount">0</strong></div>
+            <div class="metric"><span>Progress</span><strong id="progressCount">0/0</strong></div>
+            <div class="metric"><span>Streak</span><strong id="streakCount">0</strong></div>
+          </div>
+          <div class="moves" id="moveList" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script>
+    (() => {
+      const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+      const pieceTemplates = {
+        p: '<circle class="body" cx="45" cy="25" r="9"/><path class="body" d="M32 62h26l-4-12H36z"/><path class="body" d="M35 49h20c-2-13-4-18-10-18s-8 5-10 18z"/><path class="body" d="M26 71h38l-5-9H31z"/><path class="line" d="M33 66h24"/>',
+        r: '<path class="body" d="M24 18h42v13H24z"/><path class="body" d="M27 13h8v8h8v-8h8v8h8v-8h8v18H27z"/><path class="body" d="M31 31h28v26H31z"/><path class="body" d="M25 70h40l-5-13H30z"/><path class="line" d="M31 37h28M29 64h32"/>',
+        n: '<path class="body" d="M25 70h44c-6-10-12-16-22-18 4-8 10-17 7-29-6-9-18-11-26-2-6 7-9 15-11 26l10 1 7-10 7 4c-5 7-10 16-16 28z"/><path class="shine" d="M31 24c8-7 16-6 20 0-8-2-14 1-20 8z"/><circle cx="37" cy="29" r="2.2" fill="#071015"/><path class="line" d="M48 24c6 9 3 19-2 28M31 64h28M28 43l9-13"/>',
+        b: '<path class="body" d="M27 70h36l-5-11H32z"/><path class="body" d="M33 58h24c0-11-4-17-11-22 6-5 9-11 9-18 0-9-20-9-20 0 0 7 3 13 9 18-7 5-11 11-11 22z"/><circle class="body" cx="45" cy="13" r="6"/><path class="line" d="M41 21l12 10M34 64h22"/><path class="line" d="M45 37v15"/>',
+        q: '<path class="body" d="M24 70h42l-5-12H29z"/><path class="body" d="M30 57h30l5-32-12 20-8-25-8 25-12-20z"/><circle class="body" cx="25" cy="21" r="5"/><circle class="body" cx="37" cy="15" r="5"/><circle class="body" cx="45" cy="12" r="5"/><circle class="body" cx="53" cy="15" r="5"/><circle class="body" cx="65" cy="21" r="5"/><path class="line" d="M32 63h26M36 53h18M38 35l7-16 7 16"/>',
+        k: '<path class="body" d="M24 70h42l-5-12H29z"/><path class="body" d="M32 57h26c6-10 8-22 1-29-4-4-9-5-14-2-5-3-10-2-14 2-7 7-5 19 1 29z"/><path class="body" d="M41 10h8v9h9v7h-9v9h-8v-9h-9v-7h9z"/><path class="line" d="M31 63h28M35 53h20"/>'
+      };
+
+      const state = {
+        tree: { children: [], parent: null, move: null },
+        lines: [],
+        line: [],
+        chess: null,
+        step: 0,
+        selected: null,
+        legalTargets: [],
+        orientation: "white",
+        lastMove: null,
+        hintSquares: [],
+        streak: 0,
+        loaded: false
+      };
+
+      function pieceSvg(type) {
+        return `<svg viewBox="0 0 90 90" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="whitePieceGradient" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="48%" stop-color="#d8eef4"/>
+              <stop offset="100%" stop-color="#a9c4cf"/>
+            </linearGradient>
+            <linearGradient id="blackPieceGradient" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#a2b2b9"/>
+              <stop offset="48%" stop-color="#667981"/>
+              <stop offset="100%" stop-color="#2e3d43"/>
+            </linearGradient>
+          </defs>
+          ${pieceTemplates[type]}
+        </svg>`;
+      }
+
+      const els = {
+        pgn: document.getElementById("pgnInput"),
+        side: document.getElementById("sideSelect"),
+        load: document.getElementById("loadBtn"),
+        next: document.getElementById("newLineBtn"),
+        flip: document.getElementById("flipBtn"),
+        hint: document.getElementById("hintBtn"),
+        reveal: document.getElementById("revealBtn"),
+        note: document.getElementById("parseNote"),
+        status: document.getElementById("statusBox"),
+        statusText: document.getElementById("statusText"),
+        expected: document.getElementById("expectedText"),
+        board: document.getElementById("board"),
+        lineName: document.getElementById("lineName"),
+        turnNote: document.getElementById("turnNote"),
+        lineCount: document.getElementById("lineCount"),
+        progress: document.getElementById("progressCount"),
+        streak: document.getElementById("streakCount"),
+        moves: document.getElementById("moveList")
+      };
+
+      function cloneChess(chess) {
+        const copy = new Chess();
+        copy.load(chess.fen());
+        return copy;
+      }
+
+      function scrubPgn(pgn) {
+        return pgn
+          .replace(/\r/g, "\n")
+          .replace(/\[[^\]]*\]/g, " ")
+          .replace(/\{[^}]*\}/g, " ")
+          .replace(/;[^\n]*/g, " ")
+          .replace(/\$\d+/g, " ")
+          .replace(/\d+\.(\.\.)?/g, " ")
+          .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
+      }
+
+      function tokenizePgn(pgn) {
+        return scrubPgn(pgn)
+          .replace(/\(/g, " ( ")
+          .replace(/\)/g, " ) ")
+          .split(/\s+/)
+          .map(t => t.trim())
+          .filter(Boolean)
+          .map(t => t.replace(/[!?]+$/g, ""));
+      }
+
+      function addChild(parent, move, fenBefore, fenAfter) {
+        let child = parent.children.find(item => item.san === move.san && item.from === move.from && item.to === move.to && item.promotion === move.promotion);
+        if (!child) {
+          child = {
+            parent,
+            children: [],
+            san: move.san,
+            from: move.from,
+            to: move.to,
+            color: move.color,
+            flags: move.flags,
+            piece: move.piece,
+            captured: move.captured || "",
+            promotion: move.promotion || "",
+            fenBefore,
+            fenAfter
+          };
+          parent.children.push(child);
+        }
+        return child;
+      }
+
+      function parsePgn(pgn) {
+        if (!window.Chess) {
+          throw new Error("The chess rules library did not load. Check your internet connection, then reload this file.");
+        }
+
+        const root = { children: [], parent: null, move: null };
+        const initial = new Chess();
+        let currentNode = root;
+        let chess = initial;
+        let lastBranch = { node: root, fen: initial.fen() };
+        const stack = [];
+
+        for (const raw of tokenizePgn(pgn)) {
+          if (raw === "(") {
+            stack.push({ node: currentNode, fen: chess.fen(), lastBranch });
+            currentNode = lastBranch.node;
+            chess = new Chess();
+            chess.load(lastBranch.fen);
+            continue;
+          }
+          if (raw === ")") {
+            const context = stack.pop();
+            if (!context) continue;
+            currentNode = context.node;
+            chess = new Chess();
+            chess.load(context.fen);
+            lastBranch = context.lastBranch;
+            continue;
+          }
+
+          const san = raw.replace(/^[.]+/, "");
+          const fenBefore = chess.fen();
+          const move = chess.move(san, { sloppy: true });
+          if (!move) {
+            throw new Error(`Could not read move "${raw}". Check that the PGN starts from the normal initial position.`);
+          }
+          const child = addChild(currentNode, move, fenBefore, chess.fen());
+          lastBranch = { node: currentNode, fen: fenBefore };
+          currentNode = child;
+        }
+
+        return root;
+      }
+
+      function collectLines(root) {
+        const lines = [];
+        function walk(node, path) {
+          if (!node.children.length) {
+            if (path.length) lines.push(path.slice());
+            return;
+          }
+          node.children.forEach(child => walk(child, path.concat(child)));
+        }
+        walk(root, []);
+        return lines;
+      }
+
+      function currentExpected() {
+        return state.line[state.step] || null;
+      }
+
+      function userToMove() {
+        const expected = currentExpected();
+        if (!expected) return false;
+        const side = els.side.value;
+        return side === "both" || expected.color === (side === "white" ? "w" : "b");
+      }
+
+      function squareAt(row, col) {
+        const rank = state.orientation === "white" ? 8 - row : row + 1;
+        const file = state.orientation === "white" ? files[col] : files[7 - col];
+        return `${file}${rank}`;
+      }
+
+      function renderBoard() {
+        const board = state.chess ? state.chess.board() : new Chess().board();
+        els.board.innerHTML = "";
+
+        for (let row = 0; row < 8; row++) {
+          for (let col = 0; col < 8; col++) {
+            const squareName = squareAt(row, col);
+            const rankIndex = Number(squareName[1]) - 1;
+            const fileIndex = files.indexOf(squareName[0]);
+            const piece = board[8 - Number(squareName[1])][fileIndex];
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = `square ${((rankIndex + fileIndex) % 2 === 0) ? "dark" : "light"}`;
+            btn.dataset.square = squareName;
+            btn.setAttribute("aria-label", squareName);
+            if (piece) {
+              const pieceEl = document.createElement("span");
+              pieceEl.className = `piece ${piece.color === "w" ? "white" : "black"}`;
+              pieceEl.innerHTML = pieceSvg(piece.type);
+              btn.appendChild(pieceEl);
+            }
+            if (state.selected === squareName) btn.classList.add("selected");
+            if (state.legalTargets.includes(squareName)) btn.classList.add("target");
+            if (state.lastMove && (state.lastMove.from === squareName || state.lastMove.to === squareName)) btn.classList.add("last");
+            if (state.hintSquares.includes(squareName)) btn.classList.add("hint");
+            if ((state.orientation === "white" && (col === 0 || row === 7)) || (state.orientation === "black" && (col === 7 || row === 0))) {
+              const coord = document.createElement("span");
+              coord.className = "square-coord";
+              coord.textContent = (row === 7 || row === 0) && !(col === 0 || col === 7) ? squareName[0] : squareName[1];
+              btn.appendChild(coord);
+            }
+            btn.addEventListener("click", () => onSquare(squareName));
+            els.board.appendChild(btn);
+          }
+        }
+      }
+
+      function renderMoves() {
+        els.moves.innerHTML = "";
+        if (!state.line.length) {
+          els.moves.textContent = "No variation selected.";
+          return;
+        }
+
+        state.line.forEach((move, index) => {
+          if (move.color === "w") {
+            const num = document.createElement("span");
+            num.className = "small";
+            num.textContent = `${Math.floor(index / 2) + 1}. `;
+            els.moves.appendChild(num);
+          }
+          const token = document.createElement("span");
+          token.className = "move-token";
+          if (index < state.step) token.classList.add("done");
+          if (index === state.step) token.classList.add("current");
+          if (index >= state.step && userToMove()) token.classList.add("hidden-move");
+          token.textContent = move.san;
+          els.moves.appendChild(token);
+        });
+      }
+
+      function setStatus(text, kind = "") {
+        els.status.className = `status ${kind}`.trim();
+        els.statusText.textContent = text;
+      }
+
+      function renderStatus() {
+        const expected = currentExpected();
+        els.lineCount.textContent = String(state.lines.length);
+        els.progress.textContent = `${state.step}/${state.line.length}`;
+        els.streak.textContent = String(state.streak);
+        els.hint.disabled = !expected || !userToMove();
+        els.reveal.disabled = !expected || !userToMove();
+
+        if (!state.loaded) {
+          setStatus("Waiting for PGN");
+          els.expected.textContent = "";
+          return;
+        }
+
+        if (!expected) {
+          setStatus("Line complete", "good");
+          els.expected.textContent = "";
+          els.turnNote.textContent = "Nice. Hit Random line for another rep.";
+          return;
+        }
+
+        const moveNumber = Math.floor(state.step / 2) + 1;
+        const dots = expected.color === "w" ? "." : "...";
+        els.expected.textContent = userToMove() ? `${moveNumber}${dots}` : `${moveNumber}${dots} ${expected.san}`;
+        if (userToMove()) {
+          setStatus(`Your move: ${expected.color === "w" ? "White" : "Black"}`);
+          els.turnNote.textContent = "Play the highlighted side's next move.";
+        } else {
+          setStatus("Trainer reply");
+          els.turnNote.textContent = "The opponent reply will auto-play.";
+        }
+      }
+
+      function draw() {
+        renderBoard();
+        renderMoves();
+        renderStatus();
+      }
+
+      function advanceAutoMoves() {
+        let guard = 0;
+        while (currentExpected() && !userToMove() && guard < 80) {
+          const next = currentExpected();
+          state.chess.move({ from: next.from, to: next.to, promotion: next.promotion || undefined });
+          state.lastMove = { from: next.from, to: next.to };
+          state.step += 1;
+          guard += 1;
+        }
+        draw();
+      }
+
+      function chooseRandomLine() {
+        if (!state.lines.length) return;
+        state.line = state.lines[Math.floor(Math.random() * state.lines.length)];
+        state.chess = new Chess();
+        state.step = 0;
+        state.selected = null;
+        state.legalTargets = [];
+        state.hintSquares = [];
+        state.lastMove = null;
+        els.lineName.textContent = `Variation ${state.lines.indexOf(state.line) + 1}`;
+        advanceAutoMoves();
+      }
+
+      function loadPgn() {
+        try {
+          state.tree = parsePgn(els.pgn.value);
+          state.lines = collectLines(state.tree);
+          if (!state.lines.length) throw new Error("No moves found in that PGN.");
+          state.loaded = true;
+          els.next.disabled = false;
+          els.note.textContent = `Loaded ${state.lines.length} drill line${state.lines.length === 1 ? "" : "s"}.`;
+          state.streak = 0;
+          chooseRandomLine();
+        } catch (error) {
+          state.loaded = false;
+          state.lines = [];
+          state.line = [];
+          state.chess = new Chess();
+          els.next.disabled = true;
+          els.note.textContent = error.message;
+          els.lineName.textContent = "No line loaded";
+          setStatus("PGN needs attention", "bad");
+          draw();
+        }
+      }
+
+      function onSquare(square) {
+        if (!state.chess || !userToMove()) return;
+        state.hintSquares = [];
+        const piece = state.chess.get(square);
+
+        if (!state.selected) {
+          if (!piece || piece.color !== state.chess.turn()) return;
+          state.selected = square;
+          state.legalTargets = state.chess.moves({ square, verbose: true }).map(move => move.to);
+          draw();
+          return;
+        }
+
+        if (state.selected === square) {
+          state.selected = null;
+          state.legalTargets = [];
+          draw();
+          return;
+        }
+
+        const expected = currentExpected();
+        const promotion = expected.promotion || "q";
+        const move = state.chess.move({ from: state.selected, to: square, promotion });
+        if (!move) {
+          if (piece && piece.color === state.chess.turn()) {
+            state.selected = square;
+            state.legalTargets = state.chess.moves({ square, verbose: true }).map(item => item.to);
+          }
+          draw();
+          return;
+        }
+
+        const correct = move.from === expected.from && move.to === expected.to && (move.promotion || "") === (expected.promotion || "");
+        if (!correct) {
+          state.chess.undo();
+          state.streak = 0;
+          state.selected = null;
+          state.legalTargets = [];
+          state.hintSquares = [expected.from, expected.to];
+          setStatus(`Try again`, "bad");
+          draw();
+          return;
+        }
+
+        state.lastMove = { from: move.from, to: move.to };
+        state.step += 1;
+        state.streak += 1;
+        state.selected = null;
+        state.legalTargets = [];
+        advanceAutoMoves();
+      }
+
+      function revealMove() {
+        const expected = currentExpected();
+        if (!expected) return;
+        state.chess.move({ from: expected.from, to: expected.to, promotion: expected.promotion || undefined });
+        state.lastMove = { from: expected.from, to: expected.to };
+        state.step += 1;
+        state.streak = 0;
+        state.selected = null;
+        state.legalTargets = [];
+        state.hintSquares = [];
+        advanceAutoMoves();
+      }
+
+      function hintMove() {
+        const expected = currentExpected();
+        if (!expected) return;
+        state.hintSquares = [expected.from, expected.to];
+        draw();
+      }
+
+      els.load.addEventListener("click", loadPgn);
+      els.next.addEventListener("click", chooseRandomLine);
+      els.flip.addEventListener("click", () => {
+        state.orientation = state.orientation === "white" ? "black" : "white";
+        draw();
+      });
+      els.hint.addEventListener("click", hintMove);
+      els.reveal.addEventListener("click", revealMove);
+      els.side.addEventListener("change", () => {
+        if (state.loaded) chooseRandomLine();
+      });
+
+      state.chess = window.Chess ? new Chess() : null;
+      if (state.chess) {
+        loadPgn();
+      } else {
+        setStatus("Chess rules library did not load", "bad");
+        els.note.textContent = "This page needs access to cdnjs for chess.js.";
+      }
+    })();
+  </script>
+</div>
+</body>
+</html>
