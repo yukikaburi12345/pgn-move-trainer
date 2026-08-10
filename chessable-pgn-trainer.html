@@ -440,13 +440,7 @@
     📁 Import PGN file
     <input type="file" id="pgnFile" accept=".pgn">
 </label>
-        <textarea id="pgnInput" spellcheck="false">[Event "Queen's Gambit sample"]
-[Site "?"]
-[Result "*"]
 
-1. d4 d5 2. c4 e6 (2... c6 3. Nf3 Nf6 4. Nc3 dxc4) 3. Nc3 Nf6
-4. Bg5 Be7 (4... Nbd7 5. e3 Be7) 5. e3 O-O 6. Nf3 h6
-7. Bh4 b6 (7... Ne4 8. Bxe7 Qxe7) 8. cxd5 Nxd5 *</textarea>
       </label>
 
       <label>
@@ -570,6 +564,7 @@
 function scrubPgn(pgn) {
   return pgn
     .replace(/\r/g, "\n")
+    .replace(/^\s*\[[^\n]*\]\s*$/gm, " ")
     .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
     .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
     .replace(/\{[\s\S]*?\}/g, " ")
