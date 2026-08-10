@@ -86,6 +86,12 @@
       font-weight: 650;
     }
 
+    .file-upload {
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 13px;
+    }
+
     textarea,
     select {
       width: 100%;
@@ -435,12 +441,13 @@
       </div>
 
       <label>
-        PGN
-       <label class="file-upload">
-    📁 Import PGN file
-    <input type="file" id="pgnFile" accept=".pgn">
-</label>
+        PGN Text
+        <textarea id="pgnInput" placeholder="Paste PGN here or upload a file below..."></textarea>
+      </label>
 
+      <label class="file-upload">
+        📁 Import PGN file
+        <input type="file" id="pgnFile" accept=".pgn">
       </label>
 
       <label>
@@ -555,24 +562,19 @@
         moves: document.getElementById("moveList")
       };
 
-      function cloneChess(chess) {
-        const copy = new Chess();
-        copy.load(chess.fen());
-        return copy;
+      function scrubPgn(pgn) {
+        return (pgn || "")
+          .replace(/\r/g, "\n")
+          .replace(/^\s*\[[^\n]*\]\s*$/gm, " ")
+          .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
+          .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
+          .replace(/\{[\s\S]*?\}/g, " ")
+          .replace(/;[^\n]*/g, " ")
+          .replace(/\$\d+/g, " ")
+          .replace(/\d+\.(?:\.\.)?/g, " ")
+          .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
       }
 
-function scrubPgn(pgn) {
-  return pgn
-    .replace(/\r/g, "\n")
-    .replace(/^\s*\[[^\n]*\]\s*$/gm, " ")
-    .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
-    .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
-    .replace(/\{[\s\S]*?\}/g, " ")
-    .replace(/;[^\n]*/g, " ")
-    .replace(/\$\d+/g, " ")
-    .replace(/\d+\.(?:\.\.)?/g, " ")
-    .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
-}
       function tokenizePgn(pgn) {
         return scrubPgn(pgn)
           .replace(/\(/g, " ( ")
@@ -712,45 +714,44 @@ function scrubPgn(pgn) {
             }
             btn.addEventListener("click", () => onSquare(squareName));
             btn.addEventListener("pointerdown", (e) => {
-  if (!state.chess || !userToMove()) return;
+              if (!state.chess || !userToMove()) return;
 
-  const piece = state.chess.get(squareName);
-  if (!piece || piece.color !== state.chess.turn()) return;
+              const piece = state.chess.get(squareName);
+              if (!piece || piece.color !== state.chess.turn()) return;
 
-  state.selected = squareName;
-  state.legalTargets =
-    state.chess.moves({
-      square: squareName,
-      verbose: true
-    }).map(move => move.to);
+              state.selected = squareName;
+              state.legalTargets = state.chess.moves({
+                square: squareName,
+                verbose: true
+              }).map(move => move.to);
 
-  draw();
+              draw();
 
-  const boardRect = els.board.getBoundingClientRect();
+              const boardRect = els.board.getBoundingClientRect();
 
-  function finishDrag(ev) {
-    const x = ev.clientX - boardRect.left;
-    const y = ev.clientY - boardRect.top;
+              function finishDrag(ev) {
+                const x = ev.clientX - boardRect.left;
+                const y = ev.clientY - boardRect.top;
 
-    const col = Math.floor(x / (boardRect.width / 8));
-    const row = Math.floor(y / (boardRect.height / 8));
+                const col = Math.floor(x / (boardRect.width / 8));
+                const row = Math.floor(y / (boardRect.height / 8));
 
-    if (row >= 0 && row < 8 && col >= 0 && col < 8) {
-      const destination = squareAt(row, col);
-      onSquare(destination);
-    }
+                if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+                  const destination = squareAt(row, col);
+                  onSquare(destination);
+                }
 
-    state.selected = null;
-    state.legalTargets = [];
+                state.selected = null;
+                state.legalTargets = [];
 
-    draw();
+                draw();
 
-    window.removeEventListener("pointerup", finishDrag);
-  }
+                window.removeEventListener("pointerup", finishDrag);
+              }
 
-  window.addEventListener("pointerup", finishDrag);
-  e.preventDefault();
-});
+              window.addEventListener("pointerup", finishDrag);
+              e.preventDefault();
+            });
             els.board.appendChild(btn);
           }
         }
@@ -851,6 +852,9 @@ function scrubPgn(pgn) {
 
       function loadPgn() {
         try {
+          if (!els.pgn.value.trim()) {
+            throw new Error("Please paste PGN text or choose a .pgn file first.");
+          }
           state.tree = parsePgn(els.pgn.value);
           state.lines = collectLines(state.tree);
           if (!state.lines.length) throw new Error("No moves found in that PGN.");
@@ -946,19 +950,16 @@ function scrubPgn(pgn) {
 
       els.load.addEventListener("click", loadPgn);
       document.getElementById("pgnFile").addEventListener("change", (event) => {
-        console.log("PGN File selected");
-  const file = event.target.files[0];
-  if (!file) return;
+        const file = event.target.files[0];
+        if (!file) return;
 
-  const reader = new FileReader();
-
-  reader.onload = (e) => {
-    els.pgn.value = e.target.result;
-    loadPgn();
-  };
-
-  reader.readAsText(file);
-});
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          els.pgn.value = e.target.result;
+          loadPgn();
+        };
+        reader.readAsText(file);
+      });
       els.next.addEventListener("click", chooseRandomLine);
       els.flip.addEventListener("click", () => {
         state.orientation = state.orientation === "white" ? "black" : "white";
@@ -971,11 +972,11 @@ function scrubPgn(pgn) {
       });
 
       state.chess = window.Chess ? new Chess() : null;
-      if (state.chess) {
-        loadPgn();
-      } else {
+      if (!state.chess) {
         setStatus("Chess rules library did not load", "bad");
         els.note.textContent = "This page needs access to cdnjs for chess.js.";
+      } else {
+        draw();
       }
     })();
   </script>
