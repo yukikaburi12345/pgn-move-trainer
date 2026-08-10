@@ -245,10 +245,10 @@
       transition: transform 0.15s ease, filter 0.15s ease;
     }
 
-    .square .piece svg {
+    .square .piece img {
       width: 90%;
       height: 90%;
-      overflow: visible;
+      object-fit: contain;
       filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
     }
 
@@ -471,45 +471,6 @@
     (() => {
       const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
 
-    const pieceTemplates = {
-  p: `
-    <path d="M50 12c-8 0-14 6-14 14 0 5 2 9 5 12-6 6-10 14-10 22h38c0-8-4-16-10-22 3-3 5-7 5-12 0-8-6-14-14-14z" class="glass-body"/>
-    <circle cx="50" cy="20" r="6" class="glass-top"/>
-    <path d="M34 58q16-6 32 0" class="glass-highlight"/>
-  `,
-  r: `
-    <path d="M32 18h8v6h8v-6h8v6h8v-6h8v12l-6 8v26l6 6v10H32V70l6-6V38l-6-8z" class="glass-body"/>
-    <path d="M36 32h28" class="glass-highlight"/>
-    <path d="M34 58q16-6 32 0" class="glass-highlight"/>
-  `,
-  n: `
-    <path d="M30 70h40l-2-12c0-8-10-12-10-20 0-8 10-10 10-20-10-6-22-2-28 6-4-4-12-2-16 6-2 6 4 10 8 8-6 6-6 14 0 18-4 4-4 10-2 14z" class="glass-body"/>
-    <circle cx="46" cy="26" r="3" class="glass-eye"/>
-    <path d="M36 32q14-10 28-4" class="glass-highlight"/>
-  `,
-  b: `
-    <path d="M50 10c-10 8-18 22-14 38 2 6-4 10-8 22h44c-4-12-10-16-8-22 4-16-4-30-14-38z" class="glass-body"/>
-    <circle cx="50" cy="10" r="4" class="glass-top"/>
-    <path d="M42 28h16M50 20v16" class="glass-cross"/>
-    <path d="M34 56q16-6 32 0" class="glass-highlight"/>
-  `,
-  q: `
-    <path d="M28 70h44l-4-14 8-26-16 12-10-24-10 24-16-12 8 26z" class="glass-body"/>
-    <circle cx="24" cy="26" r="3" class="glass-top"/>
-    <circle cx="40" cy="38" r="3" class="glass-top"/>
-    <circle cx="50" cy="15" r="4" class="glass-top"/>
-    <circle cx="60" cy="38" r="3" class="glass-top"/>
-    <circle cx="76" cy="26" r="3" class="glass-top"/>
-    <path d="M32 58q16-6 32 0" class="glass-highlight"/>
-  `,
-  k: `
-    <path d="M28 70h44l-4-14c0-10-4-16-6-24-2-6-6-10-12-10s-10 4-12 10c-2 8-6 14-6 24z" class="glass-body"/>
-    <path d="M50 8v12M44 14h12" class="glass-cross" stroke-width="3.5"/>
-    <path d="M32 58q16-6 32 0" class="glass-highlight"/>
-  `
-};
-
-
       const state = {
         tree: { children: [], parent: null, move: null },
         lines: [],
@@ -526,43 +487,8 @@
         uploadedText: ""
       };
 
-      function pieceSvg(type) {
-        return `<svg viewBox="0 0 100 80" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="glassWhite" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
-              <stop offset="45%" stop-color="#e2f1f7" stop-opacity="0.85"/>
-              <stop offset="80%" stop-color="#b4d5e5" stop-opacity="0.75"/>
-              <stop offset="100%" stop-color="#72a8c3" stop-opacity="0.85"/>
-            </linearGradient>
-            <linearGradient id="glassBlack" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#4a5f6b" stop-opacity="0.95"/>
-              <stop offset="40%" stop-color="#23323a" stop-opacity="0.90"/>
-              <stop offset="85%" stop-color="#0f171c" stop-opacity="0.95"/>
-              <stop offset="100%" stop-color="#05080a" stop-opacity="1.0"/>
-            </linearGradient>
-            <linearGradient id="glassGloss" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
-              <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0"/>
-            </linearGradient>
-          </defs>
-          <style>
-            .piece.white .glass-body { fill: url(#glassWhite); stroke: #4f788a; stroke-width: 1.8; }
-            .piece.white .glass-base { fill: url(#glassWhite); stroke: #3e6373; stroke-width: 1.8; }
-            .piece.white .glass-top { fill: #ffffff; stroke: #4f788a; stroke-width: 1.5; }
-            .piece.white .glass-cross { stroke: #3a6274; stroke-linecap: round; }
-            .piece.white .glass-eye { fill: #3a6274; }
-            .piece.white .glass-highlight { stroke: url(#glassGloss); stroke-width: 2; fill: none; }
-
-            .piece.black .glass-body { fill: url(#glassBlack); stroke: #8cb2c4; stroke-width: 1.6; }
-            .piece.black .glass-base { fill: url(#glassBlack); stroke: #7da5b7; stroke-width: 1.6; }
-            .piece.black .glass-top { fill: #a2c4d4; stroke: #6891a3; stroke-width: 1.5; }
-            .piece.black .glass-cross { stroke: #9ec3d4; stroke-linecap: round; }
-            .piece.black .glass-eye { fill: #8cb2c4; }
-            .piece.black .glass-highlight { stroke: rgba(255,255,255,0.35); stroke-width: 1.8; fill: none; }
-          </style>
-          ${pieceTemplates[type]}
-        </svg>`;
+      function pieceImg(color, type) {
+        return `<img src="${color}${type}.png" alt="${color}${type}" draggable="false">`;
       }
 
       const els = {
@@ -733,7 +659,7 @@
             if (piece) {
               const pieceEl = document.createElement("span");
               pieceEl.className = `piece ${piece.color === "w" ? "white" : "black"}`;
-              pieceEl.innerHTML = pieceSvg(piece.type);
+              pieceEl.innerHTML = pieceImg(piece.color, piece.type);
               btn.appendChild(pieceEl);
             }
             if (state.selected === squareName) btn.classList.add("selected");
