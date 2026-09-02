@@ -7,6 +7,7 @@ Open `index.html` or `chessable-pgn-trainer.html` in a browser, paste a PGN, cho
 ## Features
 
 - Paste PGN with nested variations
+- Start from custom `[FEN "..."]` and `[SetUp "1"]` positions
 - Random variation drilling
 - Train White, Black, or both sides
 - Click-to-move chess board
