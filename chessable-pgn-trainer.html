@@ -86,6 +86,12 @@
       font-weight: 650;
     }
 
+    .file-upload {
+      cursor: pointer;
+      color: var(--accent);
+      font-size: 13px;
+    }
+
     textarea,
     select {
       width: 100%;
@@ -97,7 +103,7 @@
     }
 
     textarea {
-      min-height: 260px;
+      min-height: 220px;
       padding: 12px;
       resize: vertical;
       line-height: 1.45;
@@ -209,11 +215,6 @@
       border-radius: 0;
       padding: 0;
       min-height: 0;
-      font-size: clamp(30px, 7.2vw, 76px);
-      line-height: 1;
-      font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols2", serif;
-      font-weight: 400;
-      color: #10191d;
       overflow: hidden;
     }
 
@@ -233,50 +234,26 @@
         var(--dark-square);
     }
 
-    .piece {
+    .square .piece {
       position: relative;
       z-index: 1;
       display: grid;
       place-items: center;
       width: 100%;
       height: 100%;
-      transform: translateY(-2px);
-      filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.58)) drop-shadow(0 5px 6px rgba(4, 11, 14, 0.34));
+      transform: translateY(-1px);
+      transition: transform 0.15s ease, filter 0.15s ease;
     }
 
-    .piece svg {
-      width: 98%;
-      height: 98%;
-      overflow: visible;
+    .square .piece img {
+      width: 90%;
+      height: 90%;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
     }
 
-    .piece .body {
-      stroke: #071015;
-      stroke-width: 2.4;
-      stroke-linejoin: round;
-      stroke-linecap: round;
-    }
-
-    .piece .line {
-      fill: none;
-      stroke: #071015;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      opacity: 0.9;
-    }
-
-    .piece.white .body {
-      fill: url(#whitePieceGradient);
-    }
-
-    .piece.black .body {
-      fill: url(#blackPieceGradient);
-    }
-
-    .piece.black .shine,
-    .piece.white .shine {
-      fill: rgba(255, 255, 255, 0.22);
-      stroke: none;
+    .square:hover .piece {
+      transform: translateY(-3px) scale(1.03);
     }
 
     .square.selected::after,
@@ -435,14 +412,13 @@
       </div>
 
       <label>
-        PGN
-        <textarea id="pgnInput" spellcheck="false">[Event "Queen's Gambit sample"]
-[Site "?"]
-[Result "*"]
+        PGN Text
+        <textarea id="pgnInput" placeholder="Paste PGN text here or upload a file below..."></textarea>
+      </label>
 
-1. d4 d5 2. c4 e6 (2... c6 3. Nf3 Nf6 4. Nc3 dxc4) 3. Nc3 Nf6
-4. Bg5 Be7 (4... Nbd7 5. e3 Be7) 5. e3 O-O 6. Nf3 h6
-7. Bh4 b6 (7... Ne4 8. Bxe7 Qxe7) 8. cxd5 Nxd5 *</textarea>
+      <label class="file-upload">
+        📁 Import PGN file
+        <input type="file" id="pgnFile" accept=".pgn">
       </label>
 
       <label>
@@ -494,22 +470,12 @@
   <script>
     (() => {
       const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
-      const pieceTemplates = {
-        p: '<circle class="body" cx="45" cy="25" r="9"/><path class="body" d="M32 62h26l-4-12H36z"/><path class="body" d="M35 49h20c-2-13-4-18-10-18s-8 5-10 18z"/><path class="body" d="M26 71h38l-5-9H31z"/><path class="line" d="M33 66h24"/>',
-        r: '<path class="body" d="M24 18h42v13H24z"/><path class="body" d="M27 13h8v8h8v-8h8v8h8v-8h8v18H27z"/><path class="body" d="M31 31h28v26H31z"/><path class="body" d="M25 70h40l-5-13H30z"/><path class="line" d="M31 37h28M29 64h32"/>',
-        n: '<path class="body" d="M25 70h44c-6-10-12-16-22-18 4-8 10-17 7-29-6-9-18-11-26-2-6 7-9 15-11 26l10 1 7-10 7 4c-5 7-10 16-16 28z"/><path class="shine" d="M31 24c8-7 16-6 20 0-8-2-14 1-20 8z"/><circle cx="37" cy="29" r="2.2" fill="#071015"/><path class="line" d="M48 24c6 9 3 19-2 28M31 64h28M28 43l9-13"/>',
-        b: '<path class="body" d="M27 70h36l-5-11H32z"/><path class="body" d="M33 58h24c0-11-4-17-11-22 6-5 9-11 9-18 0-9-20-9-20 0 0 7 3 13 9 18-7 5-11 11-11 22z"/><circle class="body" cx="45" cy="13" r="6"/><path class="line" d="M41 21l12 10M34 64h22"/><path class="line" d="M45 37v15"/>',
-        q: '<path class="body" d="M24 70h42l-5-12H29z"/><path class="body" d="M30 57h30l5-32-12 20-8-25-8 25-12-20z"/><circle class="body" cx="25" cy="21" r="5"/><circle class="body" cx="37" cy="15" r="5"/><circle class="body" cx="45" cy="12" r="5"/><circle class="body" cx="53" cy="15" r="5"/><circle class="body" cx="65" cy="21" r="5"/><path class="line" d="M32 63h26M36 53h18M38 35l7-16 7 16"/>',
-        k: '<path class="body" d="M24 70h42l-5-12H29z"/><path class="body" d="M32 57h26c6-10 8-22 1-29-4-4-9-5-14-2-5-3-10-2-14 2-7 7-5 19 1 29z"/><path class="body" d="M41 10h8v9h9v7h-9v9h-8v-9h-9v-7h9z"/><path class="line" d="M31 63h28M35 53h20"/>'
-      };
 
       const state = {
         tree: { children: [], parent: null, move: null },
         lines: [],
         line: [],
         chess: null,
-        startFen: null,
-        headers: {},
         step: 0,
         selected: null,
         legalTargets: [],
@@ -517,25 +483,12 @@
         lastMove: null,
         hintSquares: [],
         streak: 0,
-        loaded: false
+        loaded: false,
+        uploadedText: ""
       };
 
-      function pieceSvg(type) {
-        return `<svg viewBox="14 6 62 68" aria-hidden="true" focusable="false">
-          <defs>
-            <linearGradient id="whitePieceGradient" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stop-color="#ffffff"/>
-              <stop offset="48%" stop-color="#d8eef4"/>
-              <stop offset="100%" stop-color="#a9c4cf"/>
-            </linearGradient>
-            <linearGradient id="blackPieceGradient" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stop-color="#a2b2b9"/>
-              <stop offset="48%" stop-color="#667981"/>
-              <stop offset="100%" stop-color="#2e3d43"/>
-            </linearGradient>
-          </defs>
-          ${pieceTemplates[type]}
-        </svg>`;
+      function pieceImg(color, type) {
+        return `<img src="${color}${type}.png" alt="${color}${type}" draggable="false">`;
       }
 
       const els = {
@@ -559,41 +512,36 @@
         moves: document.getElementById("moveList")
       };
 
-      function cloneChess(chess) {
-        const copy = new Chess();
-        copy.load(chess.fen());
-        return copy;
-      }
-
       function parseHeaders(pgn) {
         const headers = {};
         const headerPattern = /^\s*\[([A-Za-z0-9_]+)\s+"((?:\\.|[^"\\])*)"\]\s*$/gm;
         let match;
-        while ((match = headerPattern.exec(pgn)) !== null) {
+        while ((match = headerPattern.exec(pgn || "")) !== null) {
           headers[match[1]] = match[2].replace(/\\"/g, "\"").replace(/\\\\/g, "\\");
         }
         return headers;
       }
 
-      function startingFenFromHeaders(headers) {
+      function loadStartingPosition(headers) {
+        const chess = new Chess();
         if (headers.SetUp === "1" && headers.FEN) {
-          const test = new Chess();
-          if (!test.load(headers.FEN)) {
+          if (!chess.load(headers.FEN)) {
             throw new Error("The PGN has a FEN header, but that FEN is not valid.");
           }
-          return headers.FEN;
         }
-        return null;
+        return chess;
       }
 
       function scrubPgn(pgn) {
-        return pgn
+        return (pgn || "")
           .replace(/\r/g, "\n")
           .replace(/\[[^\]]*\]/g, " ")
-          .replace(/\{[^}]*\}/g, " ")
+          .replace(/@@StartFEN@@[\s\S]*?@@EndFEN@@/g, " ")
+          .replace(/@@StartBracket@@[\s\S]*?@@EndBracket@@/g, " ")
+          .replace(/\{[\s\S]*?\}/g, " ")
           .replace(/;[^\n]*/g, " ")
           .replace(/\$\d+/g, " ")
-          .replace(/\d+\.(\.\.)?/g, " ")
+          .replace(/\d+\.(?:\.\.)?/g, " ")
           .replace(/(?:1-0|0-1|1\/2-1\/2|\*)/g, " ");
       }
 
@@ -631,49 +579,57 @@
 
       function parsePgn(pgn) {
         if (!window.Chess) {
-          throw new Error("The chess rules library did not load. Check your internet connection, then reload this file.");
+          throw new Error("The chess rules library did not load. Check your internet connection.");
         }
 
-        const headers = parseHeaders(pgn);
-        const startFen = startingFenFromHeaders(headers);
         const root = { children: [], parent: null, move: null };
-        const initial = new Chess();
-        if (startFen) initial.load(startFen);
-        let currentNode = root;
-        let chess = initial;
-        let lastBranch = { node: root, fen: initial.fen() };
-        const stack = [];
+        const rawGames = pgn.split(/(?=\[\s*Event\s*")/gi);
 
-        for (const raw of tokenizePgn(pgn)) {
-          if (raw === "(") {
-            stack.push({ node: currentNode, fen: chess.fen(), lastBranch });
-            currentNode = lastBranch.node;
-            chess = new Chess();
-            chess.load(lastBranch.fen);
-            continue;
-          }
-          if (raw === ")") {
-            const context = stack.pop();
-            if (!context) continue;
-            currentNode = context.node;
-            chess = new Chess();
-            chess.load(context.fen);
-            lastBranch = context.lastBranch;
-            continue;
-          }
+        for (const gameStr of rawGames) {
+          const tokens = tokenizePgn(gameStr);
+          if (!tokens.length) continue;
 
-          const san = raw.replace(/^[.]+/, "");
-          const fenBefore = chess.fen();
-          const move = chess.move(san, { sloppy: true });
-          if (!move) {
-            throw new Error(`Could not read move "${raw}". Check the PGN moves and any FEN/SetUp headers.`);
+          const headers = parseHeaders(gameStr);
+          let chess = loadStartingPosition(headers);
+          let currentNode = root;
+          let lastBranch = { node: root, fen: chess.fen() };
+          const stack = [];
+
+          for (const raw of tokens) {
+            if (raw === "(") {
+              stack.push({ node: currentNode, fen: chess.fen(), lastBranch });
+              currentNode = lastBranch.node;
+              chess = new Chess();
+              chess.load(lastBranch.fen);
+              continue;
+            }
+            if (raw === ")") {
+              const context = stack.pop();
+              if (!context) continue;
+              currentNode = context.node;
+              chess = new Chess();
+              chess.load(context.fen);
+              lastBranch = context.lastBranch;
+              continue;
+            }
+
+            const san = raw.replace(/^[.]+/, "").replace(/[!?+#]+$/g, "");
+            if (!san || san.length > 7) continue;
+
+            const fenBefore = chess.fen();
+            const move = chess.move(san, { sloppy: true });
+            
+            if (!move) {
+              continue;
+            }
+
+            const child = addChild(currentNode, move, fenBefore, chess.fen());
+            lastBranch = { node: currentNode, fen: fenBefore };
+            currentNode = child;
           }
-          const child = addChild(currentNode, move, fenBefore, chess.fen());
-          lastBranch = { node: currentNode, fen: fenBefore };
-          currentNode = child;
         }
 
-        return { root, startFen, headers };
+        return root;
       }
 
       function collectLines(root) {
@@ -707,9 +663,7 @@
       }
 
       function renderBoard() {
-        const preview = new Chess();
-        if (state.startFen) preview.load(state.startFen);
-        const board = state.chess ? state.chess.board() : preview.board();
+        const board = state.chess ? state.chess.board() : new Chess().board();
         els.board.innerHTML = "";
 
         for (let row = 0; row < 8; row++) {
@@ -726,7 +680,7 @@
             if (piece) {
               const pieceEl = document.createElement("span");
               pieceEl.className = `piece ${piece.color === "w" ? "white" : "black"}`;
-              pieceEl.innerHTML = pieceSvg(piece.type);
+              pieceEl.innerHTML = pieceImg(piece.color, piece.type);
               btn.appendChild(pieceEl);
             }
             if (state.selected === squareName) btn.classList.add("selected");
@@ -740,6 +694,45 @@
               btn.appendChild(coord);
             }
             btn.addEventListener("click", () => onSquare(squareName));
+            btn.addEventListener("pointerdown", (e) => {
+              if (!state.chess || !userToMove()) return;
+
+              const piece = state.chess.get(squareName);
+              if (!piece || piece.color !== state.chess.turn()) return;
+
+              state.selected = squareName;
+              state.legalTargets = state.chess.moves({
+                square: squareName,
+                verbose: true
+              }).map(move => move.to);
+
+              draw();
+
+              const boardRect = els.board.getBoundingClientRect();
+
+              function finishDrag(ev) {
+                const x = ev.clientX - boardRect.left;
+                const y = ev.clientY - boardRect.top;
+
+                const col = Math.floor(x / (boardRect.width / 8));
+                const row = Math.floor(y / (boardRect.height / 8));
+
+                if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+                  const destination = squareAt(row, col);
+                  if (destination !== squareName) {
+                    onSquare(destination);
+                    state.selected = null;
+                    state.legalTargets = [];
+                  }
+                }
+
+                draw();
+
+                window.removeEventListener("pointerup", finishDrag);
+              }
+
+              window.addEventListener("pointerup", finishDrag);
+            });
             els.board.appendChild(btn);
           }
         }
@@ -829,7 +822,9 @@
         if (!state.lines.length) return;
         state.line = state.lines[Math.floor(Math.random() * state.lines.length)];
         state.chess = new Chess();
-        if (state.startFen) state.chess.load(state.startFen);
+        if (state.line[0]?.fenBefore) {
+          state.chess.load(state.line[0].fenBefore);
+        }
         state.step = 0;
         state.selected = null;
         state.legalTargets = [];
@@ -841,23 +836,23 @@
 
       function loadPgn() {
         try {
-          const parsed = parsePgn(els.pgn.value);
-          state.tree = parsed.root;
-          state.startFen = parsed.startFen;
-          state.headers = parsed.headers;
+          const rawText = (els.pgn ? els.pgn.value : state.uploadedText) || "";
+          if (!rawText.trim()) {
+            throw new Error("Please select a file or paste PGN text first.");
+          }
+          state.tree = parsePgn(rawText);
           state.lines = collectLines(state.tree);
           if (!state.lines.length) throw new Error("No moves found in that PGN.");
           state.loaded = true;
           els.next.disabled = false;
-          els.note.textContent = `Loaded ${state.lines.length} drill line${state.lines.length === 1 ? "" : "s"}${state.startFen ? " from the FEN position" : ""}.`;
+          const hasCustomStarts = state.lines.some(line => line[0]?.fenBefore && line[0].fenBefore !== new Chess().fen());
+          els.note.textContent = `Loaded ${state.lines.length} drill line${state.lines.length === 1 ? "" : "s"}${hasCustomStarts ? " with custom start position support" : ""}.`;
           state.streak = 0;
           chooseRandomLine();
         } catch (error) {
           state.loaded = false;
           state.lines = [];
           state.line = [];
-          state.startFen = null;
-          state.headers = {};
           state.chess = new Chess();
           els.next.disabled = true;
           els.note.textContent = error.message;
@@ -940,6 +935,23 @@
       }
 
       els.load.addEventListener("click", loadPgn);
+
+      const fileInput = document.getElementById("pgnFile");
+      if (fileInput) {
+        fileInput.addEventListener("change", (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            state.uploadedText = e.target.result;
+            if (els.pgn) els.pgn.value = e.target.result;
+            loadPgn();
+          };
+          reader.readAsText(file);
+        });
+      }
+
       els.next.addEventListener("click", chooseRandomLine);
       els.flip.addEventListener("click", () => {
         state.orientation = state.orientation === "white" ? "black" : "white";
@@ -952,11 +964,11 @@
       });
 
       state.chess = window.Chess ? new Chess() : null;
-      if (state.chess) {
-        loadPgn();
-      } else {
+      if (!state.chess) {
         setStatus("Chess rules library did not load", "bad");
         els.note.textContent = "This page needs access to cdnjs for chess.js.";
+      } else {
+        draw();
       }
     })();
   </script>
