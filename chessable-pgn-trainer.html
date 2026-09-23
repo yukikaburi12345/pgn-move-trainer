@@ -343,6 +343,17 @@
       line-height: 1.7;
     }
 
+    .moves.hidden {
+      display: none;
+    }
+
+    .line-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
     .move-token {
       display: inline-block;
       margin-right: 6px;
@@ -461,6 +472,10 @@
             <div class="metric"><span>Streak</span><strong id="streakCount">0</strong></div>
           </div>
           <div class="moves" id="moveList" aria-live="polite"></div>
+          <div class="line-actions">
+            <button id="toggleMovesBtn" type="button" disabled>Hide</button>
+            <button class="primary" id="analyzeBtn" type="button" disabled>Analyze</button>
+          </div>
         </section>
       </div>
     </main>
@@ -482,6 +497,7 @@
         orientation: "white",
         lastMove: null,
         hintSquares: [],
+        movesHidden: false,
         streak: 0,
         loaded: false,
         uploadedText: ""
@@ -509,7 +525,9 @@
         lineCount: document.getElementById("lineCount"),
         progress: document.getElementById("progressCount"),
         streak: document.getElementById("streakCount"),
-        moves: document.getElementById("moveList")
+        moves: document.getElementById("moveList"),
+        toggleMoves: document.getElementById("toggleMovesBtn"),
+        analyze: document.getElementById("analyzeBtn")
       };
 
       function parseHeaders(pgn) {
@@ -740,6 +758,11 @@
 
       function renderMoves() {
         els.moves.innerHTML = "";
+        els.moves.classList.toggle("hidden", state.movesHidden);
+        els.moves.setAttribute("aria-hidden", state.movesHidden ? "true" : "false");
+        els.toggleMoves.textContent = state.movesHidden ? "Show" : "Hide";
+        els.toggleMoves.disabled = !state.line.length;
+
         if (!state.line.length) {
           els.moves.textContent = "No variation selected.";
           return;
@@ -774,6 +797,7 @@
         els.streak.textContent = String(state.streak);
         els.hint.disabled = !expected || !userToMove();
         els.reveal.disabled = !expected || !userToMove();
+        els.analyze.disabled = !state.line.length || Boolean(expected);
 
         if (!state.loaded) {
           setStatus("Waiting for PGN");
@@ -832,6 +856,15 @@
         state.lastMove = null;
         els.lineName.textContent = `Variation ${state.lines.indexOf(state.line) + 1}`;
         advanceAutoMoves();
+      }
+
+      function lineEndFen() {
+        if (!state.line.length) return "";
+        return state.line[state.line.length - 1].fenAfter || "";
+      }
+
+      function lichessAnalysisUrl(fen) {
+        return `https://lichess.org/analysis/${fen.replace(/\s+/g, "_")}`;
       }
 
       function loadPgn() {
@@ -934,6 +967,12 @@
         draw();
       }
 
+      function analyzeLine() {
+        const fen = lineEndFen();
+        if (!fen) return;
+        window.open(lichessAnalysisUrl(fen), "_blank", "noopener");
+      }
+
       els.load.addEventListener("click", loadPgn);
 
       const fileInput = document.getElementById("pgnFile");
@@ -959,6 +998,11 @@
       });
       els.hint.addEventListener("click", hintMove);
       els.reveal.addEventListener("click", revealMove);
+      els.toggleMoves.addEventListener("click", () => {
+        state.movesHidden = !state.movesHidden;
+        draw();
+      });
+      els.analyze.addEventListener("click", analyzeLine);
       els.side.addEventListener("change", () => {
         if (state.loaded) chooseRandomLine();
       });
