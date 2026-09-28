@@ -474,6 +474,7 @@
           <div class="moves" id="moveList" aria-live="polite"></div>
           <div class="line-actions">
             <button id="toggleMovesBtn" type="button" disabled>Hide</button>
+            <button id="autoNextBtn" type="button" disabled aria-pressed="false">Auto next: Off</button>
             <button class="primary" id="analyzeBtn" type="button" disabled>Analyze</button>
           </div>
         </section>
@@ -498,6 +499,8 @@
         lastMove: null,
         hintSquares: [],
         movesHidden: false,
+        autoNextLine: false,
+        autoNextTimer: null,
         streak: 0,
         loaded: false,
         uploadedText: ""
@@ -527,6 +530,7 @@
         streak: document.getElementById("streakCount"),
         moves: document.getElementById("moveList"),
         toggleMoves: document.getElementById("toggleMovesBtn"),
+        autoNext: document.getElementById("autoNextBtn"),
         analyze: document.getElementById("analyzeBtn")
       };
 
@@ -798,6 +802,9 @@
         els.hint.disabled = !expected || !userToMove();
         els.reveal.disabled = !expected || !userToMove();
         els.analyze.disabled = !state.line.length || Boolean(expected);
+        els.autoNext.disabled = !state.line.length;
+        els.autoNext.textContent = `Auto next: ${state.autoNextLine ? "On" : "Off"}`;
+        els.autoNext.setAttribute("aria-pressed", String(state.autoNextLine));
 
         if (!state.loaded) {
           setStatus("Waiting for PGN");
@@ -840,10 +847,31 @@
           guard += 1;
         }
         draw();
+        maybeAdvanceToNextLine();
+      }
+
+      function clearAutoNextTimer() {
+        if (state.autoNextTimer !== null) {
+          window.clearTimeout(state.autoNextTimer);
+          state.autoNextTimer = null;
+        }
+      }
+
+      function maybeAdvanceToNextLine() {
+        clearAutoNextTimer();
+        if (!state.autoNextLine || currentExpected() || !state.lines.length) return;
+
+        state.autoNextTimer = window.setTimeout(() => {
+          state.autoNextTimer = null;
+          if (state.autoNextLine && state.loaded && !currentExpected()) {
+            chooseRandomLine();
+          }
+        }, 500);
       }
 
       function chooseRandomLine() {
         if (!state.lines.length) return;
+        clearAutoNextTimer();
         state.line = state.lines[Math.floor(Math.random() * state.lines.length)];
         state.chess = new Chess();
         if (state.line[0]?.fenBefore) {
@@ -869,6 +897,7 @@
 
       function loadPgn() {
         try {
+          clearAutoNextTimer();
           const rawText = (els.pgn ? els.pgn.value : state.uploadedText) || "";
           if (!rawText.trim()) {
             throw new Error("Please select a file or paste PGN text first.");
@@ -1002,6 +1031,14 @@
         state.movesHidden = !state.movesHidden;
         draw();
       });
+      els.autoNext.addEventListener("click", () => {
+        state.autoNextLine = !state.autoNextLine;
+        if (!state.autoNextLine) clearAutoNextTimer();
+        draw();
+        if (state.autoNextLine && state.loaded && !currentExpected()) {
+          maybeAdvanceToNextLine();
+        }
+      });
       els.analyze.addEventListener("click", analyzeLine);
       els.side.addEventListener("change", () => {
         if (state.loaded) chooseRandomLine();
@@ -1019,3 +1056,4 @@
 </div>
 </body>
 </html>
+
