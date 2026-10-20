@@ -1020,6 +1020,23 @@
 
       function studyCurrentNode() { return state.studyPath.length ? state.studyPath[state.studyPath.length - 1] : state.studyRoot; }
 
+      function buildStudyTree(lines) {
+        const root = { children: [], parent: null, move: null };
+        for (const line of lines) {
+          let parent = root;
+          for (const move of line) {
+            let node = parent.children.find(child => child.san === move.san && child.from === move.from &&
+              child.to === move.to && (child.promotion || "") === (move.promotion || ""));
+            if (!node) {
+              node = { ...move, children: [], parent };
+              parent.children.push(node);
+            }
+            parent = node;
+          }
+        }
+        return root;
+      }
+
       function studyChildren() {
         return studyCurrentNode()?.children || [];
       }
@@ -1066,12 +1083,14 @@
 
       function enterStudy() {
         if (!state.loaded) return;
-        state.studyMode = !state.studyMode; state.study.textContent = state.studyMode ? "Back to Train" : "Study";
-        state.study.setAttribute("aria-pressed", String(state.studyMode)); els.next.disabled = state.studyMode;
+        state.studyMode = !state.studyMode; els.study.textContent = state.studyMode ? "Back to Train" : "Study";
+        els.study.setAttribute("aria-pressed", String(state.studyMode)); els.next.disabled = state.studyMode;
         if (state.studyMode) {
           clearAutoNextTimer();
           const firstMove = state.lines[0]?.[0];
-          state.studyRoot = state.tree;
+          // Build from the loaded drill lines so Study always has the same
+          // variations the trainer counted, even if parser tree state is stale.
+          state.studyRoot = buildStudyTree(state.lines);
           state.studyPath = []; state.movesHidden = false;
           state.chess = new Chess();
           if (firstMove?.fenBefore) state.chess.load(firstMove.fenBefore);
