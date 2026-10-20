@@ -370,8 +370,12 @@
       color: var(--accent-ink);
     }
 
-    .study-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-    .study-choices button { min-width: 48px; }
+    .study-move-tree { margin-top: 8px; line-height: 2; }
+    .study-move-tree .study-start { min-height: 30px; margin-bottom: 8px; padding: 3px 8px; }
+    .study-move-tree .study-move { min-height: 0; margin: 0 2px; padding: 0 4px; border-color: transparent; background: transparent; }
+    .study-move-tree .study-move.done { color: var(--muted); }
+    .study-move-tree .study-move.current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .study-move-number, .study-parenthesis { color: var(--muted); }
 
     .move-token.hidden-move {
       background: var(--panel);
@@ -775,25 +779,54 @@
 
         if (state.studyMode) {
           els.toggleMoves.disabled = false;
-          const history = document.createElement("div");
+          const heading = document.createElement("div");
+          heading.className = "small";
+          heading.textContent = "PGN moves · click any move to jump to that position";
+          els.moves.appendChild(heading);
+
+          const tree = document.createElement("div");
+          tree.className = "study-move-tree";
           const start = document.createElement("button");
-          start.type = "button"; start.textContent = "Start"; start.disabled = state.studyPath.length === 0;
-          start.addEventListener("click", () => studyTo(0)); history.appendChild(start);
-          state.studyPath.forEach((node, index) => {
-            const token = document.createElement("button"); token.type = "button"; token.className = "move-token";
-            token.textContent = `${node.color === "w" ? `${Math.floor(index / 2) + 1}. ` : ""}${node.san}`;
-            token.addEventListener("click", () => studyTo(index + 1)); history.appendChild(token);
-          });
-          els.moves.appendChild(history);
-          const label = document.createElement("p"); label.className = "small"; label.textContent = "Moves in this PGN from here"; els.moves.appendChild(label);
-          const choices = document.createElement("div"); choices.className = "study-choices";
-          (studyCurrentNode()?.children || []).forEach(node => {
-            const button = document.createElement("button"); button.type = "button"; button.textContent = node.san;
-            button.title = `${node.color === "w" ? "White" : "Black"} ${node.san}`;
-            button.addEventListener("click", () => studyPlay(node)); choices.appendChild(button);
-          });
-          if (!choices.childElementCount) { const end = document.createElement("span"); end.className = "small"; end.textContent = "End of line"; choices.appendChild(end); }
-          els.moves.appendChild(choices); return;
+          start.type = "button"; start.className = "study-start"; start.textContent = "Start position";
+          if (!state.studyPath.length) start.classList.add("current");
+          start.addEventListener("click", () => studyTo(0));
+          tree.appendChild(start);
+
+          function appendMove(node, variationStart = false) {
+            const moveNumber = Number((node.fenBefore || "").split(" ")[5]) || 1;
+            if (node.color === "w" || variationStart) {
+              const number = document.createElement("span");
+              number.className = "study-move-number";
+              number.textContent = node.color === "b" ? `${moveNumber}... ` : `${moveNumber}. `;
+              tree.appendChild(number);
+            }
+            const token = document.createElement("button");
+            token.type = "button";
+            token.className = "study-move";
+            if (state.studyPath.includes(node)) token.classList.add("done");
+            if (state.studyPath[state.studyPath.length - 1] === node) token.classList.add("current");
+            token.textContent = node.san;
+            token.setAttribute("aria-label", `${node.color === "w" ? "White" : "Black"}, move ${moveNumber}: ${node.san}`);
+            token.addEventListener("click", () => studySelectNode(node));
+            tree.appendChild(token);
+          }
+
+          function appendLine(parent) {
+            if (!parent?.children?.length) return;
+            const [main, ...alternatives] = parent.children;
+            appendMove(main);
+            alternatives.forEach(alternative => {
+              const open = document.createElement("span"); open.className = "study-parenthesis"; open.textContent = " ( "; tree.appendChild(open);
+              appendMove(alternative, true);
+              appendLine(alternative);
+              const close = document.createElement("span"); close.className = "study-parenthesis"; close.textContent = " ) "; tree.appendChild(close);
+            });
+            appendLine(main);
+          }
+
+          appendLine(state.studyRoot);
+          els.moves.appendChild(tree);
+          return;
         }
 
         if (!state.line.length) {
@@ -970,6 +1003,16 @@
         const fen = node?.fenAfter || state.studyRoot?.children?.[0]?.fenBefore;
         if (fen) state.chess.load(fen);
         state.lastMove = state.studyPath.length ? { from: node.from, to: node.to } : null;
+        state.selected = null; state.legalTargets = []; draw();
+      }
+
+      function studySelectNode(node) {
+        const path = [];
+        for (let current = node; current && current !== state.studyRoot; current = current.parent) path.unshift(current);
+        state.studyPath = path;
+        state.chess = new Chess();
+        if (node.fenAfter) state.chess.load(node.fenAfter);
+        state.lastMove = { from: node.from, to: node.to };
         state.selected = null; state.legalTargets = []; draw();
       }
 
