@@ -370,6 +370,9 @@
       color: var(--accent-ink);
     }
 
+    .study-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .study-choices button { min-width: 48px; }
+
     .move-token.hidden-move {
       background: var(--panel);
       color: transparent;
@@ -443,6 +446,7 @@
 
       <div class="controls">
         <button class="primary" id="loadBtn" type="button">Load PGN</button>
+        <button id="studyBtn" type="button" disabled>Study</button>
         <button id="newLineBtn" type="button" disabled>Random line</button>
         <button id="flipBtn" type="button">Flip board</button>
         <button id="hintBtn" type="button" disabled>Hint</button>
@@ -503,7 +507,8 @@
         autoNextTimer: null,
         streak: 0,
         loaded: false,
-        uploadedText: ""
+        uploadedText: "",
+        studyMode: false, studyRoot: null, studyPath: []
       };
 
       function pieceImg(color, type) {
@@ -531,7 +536,8 @@
         moves: document.getElementById("moveList"),
         toggleMoves: document.getElementById("toggleMovesBtn"),
         autoNext: document.getElementById("autoNextBtn"),
-        analyze: document.getElementById("analyzeBtn")
+        analyze: document.getElementById("analyzeBtn"),
+        study: document.getElementById("studyBtn")
       };
 
       function parseHeaders(pgn) {
@@ -717,7 +723,7 @@
             }
             btn.addEventListener("click", () => onSquare(squareName));
             btn.addEventListener("pointerdown", (e) => {
-              if (!state.chess || !userToMove()) return;
+              if (!state.chess || (!state.studyMode && !userToMove())) return;
 
               const piece = state.chess.get(squareName);
               if (!piece || piece.color !== state.chess.turn()) return;
@@ -767,6 +773,29 @@
         els.toggleMoves.textContent = state.movesHidden ? "Show" : "Hide";
         els.toggleMoves.disabled = !state.line.length;
 
+        if (state.studyMode) {
+          els.toggleMoves.disabled = false;
+          const history = document.createElement("div");
+          const start = document.createElement("button");
+          start.type = "button"; start.textContent = "Start"; start.disabled = state.studyPath.length === 0;
+          start.addEventListener("click", () => studyTo(0)); history.appendChild(start);
+          state.studyPath.forEach((node, index) => {
+            const token = document.createElement("button"); token.type = "button"; token.className = "move-token";
+            token.textContent = `${node.color === "w" ? `${Math.floor(index / 2) + 1}. ` : ""}${node.san}`;
+            token.addEventListener("click", () => studyTo(index + 1)); history.appendChild(token);
+          });
+          els.moves.appendChild(history);
+          const label = document.createElement("p"); label.className = "small"; label.textContent = "Moves in this PGN from here"; els.moves.appendChild(label);
+          const choices = document.createElement("div"); choices.className = "study-choices";
+          (studyCurrentNode()?.children || []).forEach(node => {
+            const button = document.createElement("button"); button.type = "button"; button.textContent = node.san;
+            button.title = `${node.color === "w" ? "White" : "Black"} ${node.san}`;
+            button.addEventListener("click", () => studyPlay(node)); choices.appendChild(button);
+          });
+          if (!choices.childElementCount) { const end = document.createElement("span"); end.className = "small"; end.textContent = "End of line"; choices.appendChild(end); }
+          els.moves.appendChild(choices); return;
+        }
+
         if (!state.line.length) {
           els.moves.textContent = "No variation selected.";
           return;
@@ -795,6 +824,13 @@
       }
 
       function renderStatus() {
+        if (state.studyMode) {
+          els.lineCount.textContent = String(state.lines.length); els.progress.textContent = `${state.studyPath.length} moves`; els.streak.textContent = "—";
+          els.hint.disabled = true; els.reveal.disabled = true; els.analyze.disabled = true; els.autoNext.disabled = true;
+          const count = studyCurrentNode()?.children?.length || 0;
+          setStatus(count ? `${count} PGN move${count === 1 ? "" : "s"} available` : "End of line", count ? "" : "good");
+          els.expected.textContent = ""; els.turnNote.textContent = "Choose a listed continuation or move on the board. Click move history to go back."; return;
+        }
         const expected = currentExpected();
         els.lineCount.textContent = String(state.lines.length);
         els.progress.textContent = `${state.step}/${state.line.length}`;
@@ -906,6 +942,7 @@
           state.lines = collectLines(state.tree);
           if (!state.lines.length) throw new Error("No moves found in that PGN.");
           state.loaded = true;
+          state.studyMode = false; els.study.disabled = false; els.study.textContent = "Study";
           els.next.disabled = false;
           const hasCustomStarts = state.lines.some(line => line[0]?.fenBefore && line[0].fenBefore !== new Chess().fen());
           els.note.textContent = `Loaded ${state.lines.length} drill line${state.lines.length === 1 ? "" : "s"}${hasCustomStarts ? " with custom start position support" : ""}.`;
@@ -913,6 +950,7 @@
           chooseRandomLine();
         } catch (error) {
           state.loaded = false;
+          state.studyMode = false; els.study.disabled = true; els.study.textContent = "Study";
           state.lines = [];
           state.line = [];
           state.chess = new Chess();
@@ -924,7 +962,52 @@
         }
       }
 
+      function studyCurrentNode() { return state.studyPath.length ? state.studyPath[state.studyPath.length - 1] : state.studyRoot; }
+
+      function studyTo(length) {
+        state.studyPath = state.studyPath.slice(0, length);
+        const node = studyCurrentNode(); state.chess = new Chess();
+        const fen = node?.fenAfter || state.studyRoot?.children?.[0]?.fenBefore;
+        if (fen) state.chess.load(fen);
+        state.lastMove = state.studyPath.length ? { from: node.from, to: node.to } : null;
+        state.selected = null; state.legalTargets = []; draw();
+      }
+
+      function studyPlay(node) {
+        state.studyPath.push(node); state.chess = new Chess(); state.chess.load(node.fenAfter);
+        state.lastMove = { from: node.from, to: node.to }; state.selected = null; state.legalTargets = []; draw();
+      }
+
+      function onStudySquare(square) {
+        const piece = state.chess.get(square);
+        if (!state.selected) {
+          if (!piece || piece.color !== state.chess.turn()) return;
+          state.selected = square; state.legalTargets = state.chess.moves({ square, verbose: true }).map(move => move.to); draw(); return;
+        }
+        const from = state.selected; state.selected = null; state.legalTargets = [];
+        const candidate = state.chess.moves({ square: from, verbose: true }).find(move => move.to === square);
+        if (candidate) {
+          const child = (studyCurrentNode()?.children || []).find(node => node.from === from && node.to === square && (node.promotion || "") === (candidate.promotion || ""));
+          if (child) { studyPlay(child); return; }
+        }
+        if (piece && piece.color === state.chess.turn()) { state.selected = square; state.legalTargets = state.chess.moves({ square, verbose: true }).map(move => move.to); }
+        draw();
+      }
+
+      function enterStudy() {
+        if (!state.loaded) return;
+        state.studyMode = !state.studyMode; state.study.textContent = state.studyMode ? "Back to Train" : "Study";
+        state.study.setAttribute("aria-pressed", String(state.studyMode)); els.next.disabled = state.studyMode;
+        if (state.studyMode) {
+          clearAutoNextTimer(); state.studyRoot = state.tree; state.studyPath = []; state.movesHidden = false;
+          state.chess = new Chess(); const first = state.tree.children[0]; if (first?.fenBefore) state.chess.load(first.fenBefore);
+          state.lineName.textContent = "Study"; state.step = 0;
+        } else chooseRandomLine();
+        draw();
+      }
+
       function onSquare(square) {
+        if (state.studyMode) { onStudySquare(square); return; }
         if (!state.chess || !userToMove()) return;
         state.hintSquares = [];
         const piece = state.chess.get(square);
@@ -1003,6 +1086,7 @@
       }
 
       els.load.addEventListener("click", loadPgn);
+      els.study.addEventListener("click", enterStudy);
 
       const fileInput = document.getElementById("pgnFile");
       if (fileInput) {
