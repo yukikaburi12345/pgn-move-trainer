@@ -999,9 +999,13 @@
         state.studyMode = !state.studyMode; state.study.textContent = state.studyMode ? "Back to Train" : "Study";
         state.study.setAttribute("aria-pressed", String(state.studyMode)); els.next.disabled = state.studyMode;
         if (state.studyMode) {
-          clearAutoNextTimer(); state.studyRoot = state.tree; state.studyPath = []; state.movesHidden = false;
-          state.chess = new Chess(); const first = state.tree.children[0]; if (first?.fenBefore) state.chess.load(first.fenBefore);
-          state.lineName.textContent = "Study"; state.step = 0;
+          clearAutoNextTimer();
+          const firstMove = state.lines[0]?.[0];
+          state.studyRoot = firstMove?.parent || state.tree;
+          state.studyPath = []; state.movesHidden = false;
+          state.chess = new Chess();
+          if (firstMove?.fenBefore) state.chess.load(firstMove.fenBefore);
+          els.lineName.textContent = "Study"; state.step = 0;
         } else chooseRandomLine();
         draw();
       }
