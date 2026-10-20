@@ -193,6 +193,7 @@
     }
 
     .board-frame {
+      position: relative;
       width: 100%;
       max-width: 680px;
       aspect-ratio: 1;
@@ -370,12 +371,17 @@
       color: var(--accent-ink);
     }
 
-    .study-move-tree { margin-top: 8px; line-height: 2; }
-    .study-move-tree .study-start { min-height: 30px; margin-bottom: 8px; padding: 3px 8px; }
-    .study-move-tree .study-move { min-height: 0; margin: 0 2px; padding: 0 4px; border-color: transparent; background: transparent; }
-    .study-move-tree .study-move.done { color: var(--muted); }
-    .study-move-tree .study-move.current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-    .study-move-number, .study-parenthesis { color: var(--muted); }
+    .study-history { margin-top: 8px; line-height: 2; }
+    .study-history .study-start { min-height: 30px; margin-bottom: 8px; padding: 3px 8px; }
+    .study-history { line-height: 2; }
+    .study-history .study-move { min-height: 0; margin: 0 2px; padding: 0 4px; border-color: transparent; background: transparent; }
+    .study-history .study-move.done { color: var(--muted); }
+    .study-history .study-move.current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    .study-move-number { color: var(--muted); }
+    .study-continuations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .study-continuations button.alternative { border-color: #d5a648; }
+    .study-arrows { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+    .study-arrows line { stroke-width: 10; stroke-linecap: round; opacity: .72; }
 
     .move-token.hidden-move {
       background: var(--panel);
@@ -768,6 +774,38 @@
             els.board.appendChild(btn);
           }
         }
+
+        if (state.studyMode) {
+          const svgNS = "http://www.w3.org/2000/svg";
+          const svg = document.createElementNS(svgNS, "svg");
+          svg.setAttribute("class", "study-arrows");
+          svg.setAttribute("viewBox", "0 0 800 800");
+          const defs = document.createElementNS(svgNS, "defs");
+          ["main", "alt"].forEach(kind => {
+            const marker = document.createElementNS(svgNS, "marker");
+            marker.setAttribute("id", `study-arrow-${kind}`); marker.setAttribute("markerWidth", "8");
+            marker.setAttribute("markerHeight", "8"); marker.setAttribute("refX", "6"); marker.setAttribute("refY", "4");
+            marker.setAttribute("orient", "auto"); marker.setAttribute("markerUnits", "strokeWidth");
+            const head = document.createElementNS(svgNS, "path"); head.setAttribute("d", "M0,0 L8,4 L0,8 Z");
+            head.setAttribute("fill", kind === "main" ? "#2878cf" : "#d49a28"); marker.appendChild(head); defs.appendChild(marker);
+          });
+          svg.appendChild(defs);
+          (studyCurrentNode()?.children || []).forEach((node, index) => {
+            const fromFile = files.indexOf(node.from[0]);
+            const fromRank = Number(node.from[1]);
+            const toFile = files.indexOf(node.to[0]);
+            const toRank = Number(node.to[1]);
+            const line = document.createElementNS(svgNS, "line");
+            line.setAttribute("x1", String((state.orientation === "white" ? fromFile : 7 - fromFile) * 100 + 50));
+            line.setAttribute("y1", String((state.orientation === "white" ? 8 - fromRank : fromRank - 1) * 100 + 50));
+            line.setAttribute("x2", String((state.orientation === "white" ? toFile : 7 - toFile) * 100 + 50));
+            line.setAttribute("y2", String((state.orientation === "white" ? 8 - toRank : toRank - 1) * 100 + 50));
+            line.setAttribute("stroke", index === 0 ? "#2878cf" : "#d49a28");
+            line.setAttribute("marker-end", `url(#study-arrow-${index === 0 ? "main" : "alt"})`);
+            svg.appendChild(line);
+          });
+          els.board.appendChild(svg);
+        }
       }
 
       function renderMoves() {
@@ -779,53 +817,37 @@
 
         if (state.studyMode) {
           els.toggleMoves.disabled = false;
-          const heading = document.createElement("div");
-          heading.className = "small";
-          heading.textContent = "PGN moves · click any move to jump to that position";
+          const heading = document.createElement("div"); heading.className = "small";
+          heading.textContent = "Study line · click a move to jump; arrows show continuations from here";
           els.moves.appendChild(heading);
-
-          const tree = document.createElement("div");
-          tree.className = "study-move-tree";
+          const tree = document.createElement("div"); tree.className = "study-history";
           const start = document.createElement("button");
           start.type = "button"; start.className = "study-start"; start.textContent = "Start position";
           if (!state.studyPath.length) start.classList.add("current");
           start.addEventListener("click", () => studyTo(0));
           tree.appendChild(start);
-
-          function appendMove(node, variationStart = false) {
+          state.studyPath.forEach((node, index) => {
             const moveNumber = Number((node.fenBefore || "").split(" ")[5]) || 1;
-            if (node.color === "w" || variationStart) {
-              const number = document.createElement("span");
-              number.className = "study-move-number";
-              number.textContent = node.color === "b" ? `${moveNumber}... ` : `${moveNumber}. `;
-              tree.appendChild(number);
+            if (node.color === "w") {
+              const number = document.createElement("span"); number.className = "study-move-number";
+              number.textContent = `${moveNumber}. `; tree.appendChild(number);
             }
-            const token = document.createElement("button");
-            token.type = "button";
-            token.className = "study-move";
-            if (state.studyPath.includes(node)) token.classList.add("done");
-            if (state.studyPath[state.studyPath.length - 1] === node) token.classList.add("current");
-            token.textContent = node.san;
-            token.setAttribute("aria-label", `${node.color === "w" ? "White" : "Black"}, move ${moveNumber}: ${node.san}`);
-            token.addEventListener("click", () => studySelectNode(node));
-            tree.appendChild(token);
-          }
-
-          function appendLine(parent) {
-            if (!parent?.children?.length) return;
-            const [main, ...alternatives] = parent.children;
-            appendMove(main);
-            alternatives.forEach(alternative => {
-              const open = document.createElement("span"); open.className = "study-parenthesis"; open.textContent = " ( "; tree.appendChild(open);
-              appendMove(alternative, true);
-              appendLine(alternative);
-              const close = document.createElement("span"); close.className = "study-parenthesis"; close.textContent = " ) "; tree.appendChild(close);
-            });
-            appendLine(main);
-          }
-
-          appendLine(state.studyRoot);
+            const token = document.createElement("button"); token.type = "button"; token.className = "study-move done";
+            if (index === state.studyPath.length - 1) token.classList.add("current");
+            token.textContent = node.san; token.addEventListener("click", () => studyTo(index + 1)); tree.appendChild(token);
+          });
           els.moves.appendChild(tree);
+          const options = document.createElement("div"); options.className = "study-continuations";
+          const children = studyCurrentNode()?.children || [];
+          children.forEach((node, index) => {
+            const moveNumber = Number((node.fenBefore || "").split(" ")[5]) || 1;
+            const button = document.createElement("button"); button.type = "button";
+            if (index > 0) button.classList.add("alternative");
+            button.textContent = `${node.color === "w" ? `${moveNumber}.` : `${moveNumber}...`} ${node.san}`;
+            button.addEventListener("click", () => studyPlay(node)); options.appendChild(button);
+          });
+          if (children.length) els.moves.appendChild(options);
+          else { const end = document.createElement("span"); end.className = "small"; end.textContent = state.studyPath.length ? "End of this line" : "No moves found in the PGN."; els.moves.appendChild(end); }
           return;
         }
 
