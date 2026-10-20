@@ -379,9 +379,9 @@
     .study-history .study-move.current { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
     .study-move-number { color: var(--muted); }
     .study-continuations { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-    .study-continuations button.alternative { border-color: #d5a648; }
+    .study-continuations button.alternative { border-color: #6C9F58; }
     .study-arrows { position: absolute; inset: 0; z-index: 5; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-    .study-arrows line { stroke-width: 10; stroke-linecap: round; opacity: .72; }
+    .study-arrows line { stroke-width: 4; stroke-linecap: round; opacity: .78; }
 
     .move-token.hidden-move {
       background: var(--panel);
@@ -666,6 +666,8 @@
             lastBranch = { node: currentNode, fen: fenBefore };
             currentNode = child;
           }
+
+          if (currentNode !== root) currentNode.gameEnds = (currentNode.gameEnds || 0) + 1;
         }
 
         return root;
@@ -674,9 +676,9 @@
       function collectLines(root) {
         const lines = [];
         function walk(node, path) {
-          if (!node.children.length) {
-            if (path.length) lines.push(path.slice());
-            return;
+          if (path.length) {
+            const completedGames = node.gameEnds || (node.children.length ? 0 : 1);
+            for (let count = 0; count < completedGames; count++) lines.push(path.slice());
           }
           node.children.forEach(child => walk(child, path.concat(child)));
         }
@@ -782,16 +784,14 @@
           svg.setAttribute("class", "study-arrows");
           svg.setAttribute("viewBox", "0 0 800 800");
           const defs = document.createElementNS(svgNS, "defs");
-          ["main", "alt"].forEach(kind => {
-            const marker = document.createElementNS(svgNS, "marker");
-            marker.setAttribute("id", `study-arrow-${kind}`); marker.setAttribute("markerWidth", "8");
-            marker.setAttribute("markerHeight", "8"); marker.setAttribute("refX", "6"); marker.setAttribute("refY", "4");
-            marker.setAttribute("orient", "auto"); marker.setAttribute("markerUnits", "strokeWidth");
-            const head = document.createElementNS(svgNS, "path"); head.setAttribute("d", "M0,0 L8,4 L0,8 Z");
-            head.setAttribute("fill", kind === "main" ? "#2878cf" : "#d49a28"); marker.appendChild(head); defs.appendChild(marker);
-          });
+          const marker = document.createElementNS(svgNS, "marker");
+          marker.setAttribute("id", "study-arrow"); marker.setAttribute("markerWidth", "4");
+          marker.setAttribute("markerHeight", "4"); marker.setAttribute("refX", "3"); marker.setAttribute("refY", "2");
+          marker.setAttribute("orient", "auto"); marker.setAttribute("markerUnits", "strokeWidth");
+          const head = document.createElementNS(svgNS, "path"); head.setAttribute("d", "M0,0 L4,2 L0,4 Z");
+          head.setAttribute("fill", "#6C9F58"); marker.appendChild(head); defs.appendChild(marker);
           svg.appendChild(defs);
-          studyChildren().forEach((node, index) => {
+          studyChildren().forEach(node => {
             const fromFile = files.indexOf(node.from[0]);
             const fromRank = Number(node.from[1]);
             const toFile = files.indexOf(node.to[0]);
@@ -801,8 +801,8 @@
             line.setAttribute("y1", String((state.orientation === "white" ? 8 - fromRank : fromRank - 1) * 100 + 50));
             line.setAttribute("x2", String((state.orientation === "white" ? toFile : 7 - toFile) * 100 + 50));
             line.setAttribute("y2", String((state.orientation === "white" ? 8 - toRank : toRank - 1) * 100 + 50));
-            line.setAttribute("stroke", index === 0 ? "#2878cf" : "#d49a28");
-            line.setAttribute("marker-end", `url(#study-arrow-${index === 0 ? "main" : "alt"})`);
+            line.setAttribute("stroke", "#6C9F58");
+            line.setAttribute("marker-end", "url(#study-arrow)");
             svg.appendChild(line);
           });
           els.board.appendChild(svg);
@@ -1021,13 +1021,7 @@
       function studyCurrentNode() { return state.studyPath.length ? state.studyPath[state.studyPath.length - 1] : state.studyRoot; }
 
       function studyChildren() {
-        const depth = state.studyPath.length;
-        const candidates = state.lines
-          .filter(line => state.studyPath.every((node, index) => line[index] === node))
-          .map(line => line[depth])
-          .filter(Boolean);
-        if (!candidates.length) return studyCurrentNode()?.children || [];
-        return [...new Set(candidates)];
+        return studyCurrentNode()?.children || [];
       }
 
       function studyTo(length) {
