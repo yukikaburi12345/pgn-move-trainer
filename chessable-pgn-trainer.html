@@ -790,7 +790,7 @@
             head.setAttribute("fill", kind === "main" ? "#2878cf" : "#d49a28"); marker.appendChild(head); defs.appendChild(marker);
           });
           svg.appendChild(defs);
-          (studyCurrentNode()?.children || []).forEach((node, index) => {
+          studyChildren().forEach((node, index) => {
             const fromFile = files.indexOf(node.from[0]);
             const fromRank = Number(node.from[1]);
             const toFile = files.indexOf(node.to[0]);
@@ -838,7 +838,7 @@
           });
           els.moves.appendChild(tree);
           const options = document.createElement("div"); options.className = "study-continuations";
-          const children = studyCurrentNode()?.children || [];
+          const children = studyChildren();
           children.forEach((node, index) => {
             const moveNumber = Number((node.fenBefore || "").split(" ")[5]) || 1;
             const button = document.createElement("button"); button.type = "button";
@@ -882,7 +882,7 @@
         if (state.studyMode) {
           els.lineCount.textContent = String(state.lines.length); els.progress.textContent = `${state.studyPath.length} moves`; els.streak.textContent = "—";
           els.hint.disabled = true; els.reveal.disabled = true; els.analyze.disabled = true; els.autoNext.disabled = true;
-          const count = studyCurrentNode()?.children?.length || 0;
+          const count = studyChildren().length;
           setStatus(count ? `${count} PGN move${count === 1 ? "" : "s"} available` : "End of line", count ? "" : "good");
           els.expected.textContent = ""; els.turnNote.textContent = "Choose a listed continuation or move on the board. Click move history to go back."; return;
         }
@@ -1019,6 +1019,16 @@
 
       function studyCurrentNode() { return state.studyPath.length ? state.studyPath[state.studyPath.length - 1] : state.studyRoot; }
 
+      function studyChildren() {
+        const depth = state.studyPath.length;
+        const candidates = state.lines
+          .filter(line => state.studyPath.every((node, index) => line[index] === node))
+          .map(line => line[depth])
+          .filter(Boolean);
+        if (!candidates.length) return studyCurrentNode()?.children || [];
+        return [...new Set(candidates)];
+      }
+
       function studyTo(length) {
         state.studyPath = state.studyPath.slice(0, length);
         const node = studyCurrentNode(); state.chess = new Chess();
@@ -1066,7 +1076,7 @@
         if (state.studyMode) {
           clearAutoNextTimer();
           const firstMove = state.lines[0]?.[0];
-          state.studyRoot = firstMove?.parent || state.tree;
+          state.studyRoot = state.tree;
           state.studyPath = []; state.movesHidden = false;
           state.chess = new Chess();
           if (firstMove?.fenBefore) state.chess.load(firstMove.fenBefore);
