@@ -594,7 +594,8 @@
       }
 
       function addChild(parent, move, fenBefore, fenAfter) {
-        let child = parent.children.find(item => item.san === move.san && item.from === move.from && item.to === move.to && item.promotion === move.promotion);
+        const promotion = move.promotion || "";
+        let child = parent.children.find(item => item.san === move.san && item.from === move.from && item.to === move.to && (item.promotion || "") === promotion);
         if (!child) {
           child = {
             parent,
