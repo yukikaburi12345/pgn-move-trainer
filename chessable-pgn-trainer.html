@@ -424,6 +424,14 @@
         grid-template-columns: 1fr;
       }
     }
+
+    /* Touch users tap pieces and squares; reserve board gestures from page panning. */
+    @media (hover: none) and (pointer: coarse) {
+      .board-frame,
+      .board-frame .square {
+        touch-action: none;
+      }
+    }
   </style>
 
   <div class="trainer-shell">
@@ -736,6 +744,9 @@
             }
             btn.addEventListener("click", () => onSquare(squareName));
             btn.addEventListener("pointerdown", (e) => {
+              // Keep drag-to-move for a mouse. Touch uses two taps instead,
+              // avoiding conflict with the browser's page-scroll gesture.
+              if (e.pointerType !== "mouse") return;
               if (!state.chess || (!state.studyMode && !userToMove())) return;
 
               const piece = state.chess.get(squareName);
@@ -819,7 +830,7 @@
         if (state.studyMode) {
           els.toggleMoves.disabled = false;
           const heading = document.createElement("div"); heading.className = "small";
-          heading.textContent = "Study line · click a move to jump; arrows show continuations from here";
+          heading.textContent = "Study line · " + (window.matchMedia("(pointer: coarse)").matches ? "tap" : "click") + " a move to jump; arrows show continuations from here";
           els.moves.appendChild(heading);
           const tree = document.createElement("div"); tree.className = "study-history";
           const start = document.createElement("button");
@@ -885,7 +896,10 @@
           els.hint.disabled = true; els.reveal.disabled = true; els.analyze.disabled = true; els.autoNext.disabled = true;
           const count = studyChildren().length;
           setStatus(count ? `${count} PGN move${count === 1 ? "" : "s"} available` : "End of line", count ? "" : "good");
-          els.expected.textContent = ""; els.turnNote.textContent = "Choose a listed continuation or move on the board. Click move history to go back."; return;
+          const touch = window.matchMedia("(pointer: coarse)").matches;
+          const boardAction = touch ? "Tap a piece, then its destination" : "Move a piece on the board";
+          const historyAction = touch ? "Tap move history" : "Click move history";
+          els.expected.textContent = ""; els.turnNote.textContent = "Choose a listed continuation or " + boardAction.toLowerCase() + ". " + historyAction + " to go back."; return;
         }
         const expected = currentExpected();
         els.lineCount.textContent = String(state.lines.length);
@@ -916,7 +930,7 @@
         els.expected.textContent = userToMove() ? `${moveNumber}${dots}` : `${moveNumber}${dots} ${expected.san}`;
         if (userToMove()) {
           setStatus(`Your move: ${expected.color === "w" ? "White" : "Black"}`);
-          els.turnNote.textContent = "Play the highlighted side's next move.";
+          els.turnNote.textContent = window.matchMedia("(pointer: coarse)").matches ? "Tap a piece, then tap its destination." : "Play the highlighted side's next move.";
         } else {
           setStatus("Trainer reply");
           els.turnNote.textContent = "The opponent reply will auto-play.";
