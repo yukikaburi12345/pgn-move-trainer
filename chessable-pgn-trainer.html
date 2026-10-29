@@ -893,7 +893,7 @@
       function renderStatus() {
         if (state.studyMode) {
           els.lineCount.textContent = String(state.lines.length); els.progress.textContent = `${state.studyPath.length} moves`; els.streak.textContent = "—";
-          els.hint.disabled = true; els.reveal.disabled = true; els.analyze.disabled = true; els.autoNext.disabled = true;
+          els.hint.disabled = true; els.reveal.disabled = true; els.analyze.disabled = !state.chess; els.autoNext.disabled = true;
           const count = studyChildren().length;
           setStatus(count ? `${count} PGN move${count === 1 ? "" : "s"} available` : "End of line", count ? "" : "good");
           const touch = window.matchMedia("(pointer: coarse)").matches;
@@ -1187,7 +1187,7 @@
       }
 
       function analyzeLine() {
-        const fen = lineEndFen();
+        const fen = state.studyMode ? state.chess?.fen() : lineEndFen();
         if (!fen) return;
         window.open(lichessAnalysisUrl(fen), "_blank", "noopener");
       }
